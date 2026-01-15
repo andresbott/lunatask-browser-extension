@@ -4,17 +4,7 @@
  */
 
 import browser from "webextension-polyfill";
-
-interface Credentials {
-  userId: string;
-  authToken: string;
-}
-
-interface TaskResponse {
-  status: number;
-  data?: unknown;
-  error?: string;
-}
+import type { Credentials, TaskResponse } from "../shared/types";
 
 async function saveToLunatask(
   areaId: string,

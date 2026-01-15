@@ -4,11 +4,7 @@
  */
 
 import browser from "webextension-polyfill";
-
-interface Credentials {
-  userId: string;
-  authToken: string;
-}
+import type { Credentials } from "../shared/types";
 
 // DOM Elements
 const form = document.getElementById("settings-form") as HTMLFormElement;
