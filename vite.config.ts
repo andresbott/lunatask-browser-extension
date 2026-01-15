@@ -7,7 +7,7 @@ export default defineConfig(({ mode }) => ({
       manifest: () => {
         const manifest = {
           manifest_version: 3,
-          name: "Lunatask Extension",
+          name: "Lunatask",
           version: "0.1.0",
           description: "Lunatask browser extension",
           icons: {
