@@ -13,6 +13,7 @@ dist-firefox/
 .idea/
 *.swp
 *.swo
+*.iml
 
 # OS
 .DS_Store
