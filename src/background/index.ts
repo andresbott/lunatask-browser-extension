@@ -53,8 +53,19 @@ async function saveToLunatask(
   areaId: string,
   token: string,
   title: string,
-  note: string
+  note: string,
+  goalId?: string
 ): Promise<TaskResponse> {
+  const task: Record<string, string> = {
+    area_id: areaId,
+    name: title,
+    note: note,
+  };
+
+  if (goalId) {
+    task.goal_id = goalId;
+  }
+
   const options = {
     method: "POST",
     headers: {
@@ -62,13 +73,7 @@ async function saveToLunatask(
       Accept: "application/json",
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      task: {
-        area_id: areaId,
-        name: title,
-        note: note,
-      },
-    }),
+    body: JSON.stringify({ task }),
   };
 
   const response = await fetch("https://api.lunatask.app/v1/tasks", options);
@@ -119,7 +124,8 @@ async function handleSavePage(
     credentials.areaId,
     credentials.authToken,
     title,
-    note
+    note,
+    credentials.goalId
   );
 
   if (result.status === 201) {

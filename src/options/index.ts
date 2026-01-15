@@ -9,6 +9,7 @@ import type { Config } from "../shared/types";
 const form = document.getElementById("settings-form") as HTMLFormElement;
 const areaIdInput = document.getElementById("area-id") as HTMLInputElement;
 const authTokenInput = document.getElementById("auth-token") as HTMLInputElement;
+const goalIdInput = document.getElementById("goal-id") as HTMLInputElement;
 const toggleTokenBtn = document.getElementById("toggle-token") as HTMLButtonElement;
 const statusMessage = document.getElementById("status-message") as HTMLDivElement;
 
@@ -19,6 +20,7 @@ async function init() {
   if (credentials) {
     areaIdInput.value = credentials.areaId || "";
     authTokenInput.value = credentials.authToken || "";
+    goalIdInput.value = credentials.goalId || "";
   }
 
   setupEventListeners();
@@ -45,6 +47,7 @@ async function saveCredentials() {
   const credentials: Config = {
     areaId: areaIdInput.value.trim(),
     authToken: authTokenInput.value.trim(),
+    goalId: goalIdInput.value.trim() || undefined,
   };
 
   try {

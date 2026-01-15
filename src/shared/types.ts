@@ -5,6 +5,7 @@
 export interface Config {
   areaId: string;
   authToken: string;
+  goalId?: string;
 }
 
 export interface TaskResponse {
