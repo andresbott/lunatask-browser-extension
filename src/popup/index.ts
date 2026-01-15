@@ -8,21 +8,32 @@ import type { SaveMode } from "../shared/types";
 
 const saveUrlBtn = document.getElementById("save-url") as HTMLButtonElement;
 const saveContentBtn = document.getElementById("save-content") as HTMLButtonElement;
-const statusEl = document.getElementById("status") as HTMLDivElement;
 
-function showStatus(message: string, type: "success" | "error" | "warning") {
-  statusEl.textContent = message;
-  statusEl.className = `status ${type}`;
+const originalLabels = {
+  url: saveUrlBtn.textContent,
+  content: saveContentBtn.textContent,
+};
+
+function setButtonLoading(btn: HTMLButtonElement, other: HTMLButtonElement) {
+  btn.innerHTML = '<span class="spinner" aria-hidden="true"></span>';
+  btn.classList.add("loading");
+  btn.setAttribute("aria-busy", "true");
+  other.disabled = true;
 }
 
-function disableButtons() {
-  saveUrlBtn.disabled = true;
-  saveContentBtn.disabled = true;
+function setButtonStatus(btn: HTMLButtonElement, message: string, type: "success" | "error") {
+  btn.textContent = message;
+  btn.classList.remove("loading");
+  btn.classList.add(type);
+  btn.removeAttribute("aria-busy");
 }
 
 async function handleSave(mode: SaveMode) {
-  disableButtons();
-  
+  const activeBtn = mode === "url" ? saveUrlBtn : saveContentBtn;
+  const otherBtn = mode === "url" ? saveContentBtn : saveUrlBtn;
+
+  setButtonLoading(activeBtn, otherBtn);
+
   try {
     const response = await browser.runtime.sendMessage({
       type: "SAVE_PAGE",
@@ -30,14 +41,14 @@ async function handleSave(mode: SaveMode) {
     });
 
     if (response?.success) {
-      showStatus("Saved!", "success");
+      setButtonStatus(activeBtn, "Saved!", "success");
       setTimeout(() => window.close(), 800);
     } else {
-      showStatus(response?.error || "Failed to save", "error");
+      setButtonStatus(activeBtn, response?.error || "Failed to save", "error");
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    showStatus(message, "error");
+    setButtonStatus(activeBtn, message, "error");
   }
 }
 
