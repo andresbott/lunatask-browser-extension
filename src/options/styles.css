@@ -203,61 +203,6 @@ body {
   color: var(--error);
 }
 
-.save-mode-group {
-  border: none;
-  padding: 0;
-}
-
-.radio-options {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.radio-option {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 14px 16px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: border-color 0.15s ease, background-color 0.15s ease;
-}
-
-.radio-option:hover {
-  border-color: #cbd5e1;
-  background: var(--bg-primary);
-}
-
-.radio-option:has(input:checked) {
-  border-color: var(--accent-primary);
-  background: var(--accent-light);
-}
-
-.radio-option input[type="radio"] {
-  margin-top: 2px;
-  accent-color: var(--accent-primary);
-}
-
-.radio-label {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.radio-title {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text-primary);
-}
-
-.radio-description {
-  font-size: 13px;
-  color: var(--text-secondary);
-}
-
 .footer {
   margin-top: 24px;
   text-align: center;

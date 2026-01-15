@@ -1,21 +1,15 @@
 /**
  * Background Script
- * Handles extension icon clicks - saves current page to Lunatask
+ * Handles popup messages - saves current page to Lunatask
  */
 
 import browser from "webextension-polyfill";
-import {
-  DEFAULT_SETTINGS,
-  type Credentials,
-  type ExtensionSettings,
-  type ExtractedContent,
-  type TaskResponse,
+import type {
+  Credentials,
+  ExtractedContent,
+  SaveMode,
+  TaskResponse,
 } from "../shared/types";
-
-async function getSettings(): Promise<ExtensionSettings> {
-  const data = await browser.storage.local.get("extensionSettings");
-  return (data.extensionSettings as ExtensionSettings) || DEFAULT_SETTINGS;
-}
 
 async function extractContentFromTab(
   tabId: number
@@ -40,7 +34,7 @@ async function extractContentFromTab(
 
 function formatTaskNote(
   content: ExtractedContent,
-  saveMode: "url" | "content"
+  saveMode: SaveMode
 ): string {
   if (saveMode === "url" || !content.content) {
     return `<${content.url}>`;
@@ -51,8 +45,8 @@ function formatTaskNote(
 
 ${content.content}
 
-[editor_v2]::`; // TODO: remove once Lunatask's API is updated to parse the
-                // new Markdown format
+[editor_v2]::`;  // TODO: remove once Lunatask's API is updated to parse the
+                 // new Markdown format
 }
 
 async function saveToLunatask(
@@ -87,139 +81,57 @@ async function saveToLunatask(
   return { status: 201 };
 }
 
-function showToast(
-  tabId: number,
-  message: string,
-  type: "success" | "error" | "warning"
-) {
-  const colors = {
-    success: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
-    error: "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)",
-    warning: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
-  };
+async function handleSavePage(
+  mode: SaveMode
+): Promise<{ success: boolean; error?: string }> {
+  const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
 
-  const icons = {
-    success: "✓",
-    error: "✕",
-    warning: "⚠",
-  };
+  if (!tab?.id || !tab.url || !tab.title) {
+    return { success: false, error: "No active tab" };
+  }
 
-  browser.scripting.executeScript({
-    target: { tabId },
-    func: (msg: string, bg: string, icon: string) => {
-      // Remove existing toast if any
-      const existingToast = document.getElementById("lunatask-toast");
-      if (existingToast) existingToast.remove();
-
-      // Create toast element
-      const toast = document.createElement("div");
-      toast.id = "lunatask-toast";
-      toast.innerHTML = `
-        <span style="margin-right: 10px; font-size: 16px;">${icon}</span>
-        <span>${msg}</span>
-      `;
-
-      // Toast styles
-      Object.assign(toast.style, {
-        position: "fixed",
-        top: "24px",
-        right: "24px",
-        padding: "14px 20px",
-        background: bg,
-        color: "#fff",
-        fontFamily: "system-ui, -apple-system, sans-serif",
-        fontSize: "14px",
-        fontWeight: "500",
-        borderRadius: "10px",
-        boxShadow: "0 8px 32px rgba(0, 0, 0, 0.3), 0 2px 8px rgba(0,0,0,0.2)",
-        zIndex: "2147483647",
-        display: "flex",
-        alignItems: "center",
-        opacity: "0",
-        transform: "translateY(-20px)",
-        transition: "all 0.3s ease",
-        maxWidth: "400px",
-      });
-
-      document.body.appendChild(toast);
-
-      // Trigger animation
-      requestAnimationFrame(() => {
-        toast.style.opacity = "1";
-        toast.style.transform = "translateY(0)";
-      });
-
-      // Remove after 3 seconds
-      setTimeout(() => {
-        toast.style.opacity = "0";
-        toast.style.transform = "translateY(-20px)";
-        setTimeout(() => toast.remove(), 300);
-      }, 3000);
-    },
-    args: [message, colors[type], icons[type]],
-  });
-}
-
-// Handle extension icon click
-browser.action.onClicked.addListener(async (tab) => {
-  if (!tab.id || !tab.url || !tab.title) return;
-
-  // Load credentials from storage
   const data = await browser.storage.local.get("credentials");
   const credentials = data.credentials as Credentials | undefined;
 
   if (!credentials?.userId || !credentials?.authToken) {
-    showToast(
-      tab.id,
-      "Please configure your Lunatask credentials in the extension settings",
-      "warning"
-    );
-    // Open options page
     browser.runtime.openOptionsPage();
-    return;
+    return { success: false, error: "Please configure credentials first" };
   }
 
-  const settings = await getSettings();
+  let title = tab.title;
+  let content: ExtractedContent = {
+    title: tab.title,
+    url: tab.url,
+    content: "",
+  };
 
-  try {
-    let title = tab.title;
-    let content: ExtractedContent = { title: tab.title, url: tab.url, content: "" };
-
-    if (settings.saveMode === "content") {
-      const extracted = await extractContentFromTab(tab.id);
-      if (!extracted) {
-        showToast(
-          tab.id,
-          "Failed to extract page content. Saving URL instead.",
-          "warning"
-        );
-      } else {
-        content = extracted;
-        title = extracted.title || tab.title;
-      }
+  if (mode === "content") {
+    const extracted = await extractContentFromTab(tab.id);
+    if (extracted) {
+      content = extracted;
+      title = extracted.title || tab.title;
     }
-
-    const note = formatTaskNote(content, settings.saveMode);
-
-    const result = await saveToLunatask(
-      credentials.userId,
-      credentials.authToken,
-      title,
-      note
-    );
-
-    if (result.status === 201) {
-      showToast(tab.id, "Saved to Lunatask!", "success");
-    } else {
-      showToast(
-        tab.id,
-        "Error saving to Lunatask: " + (result.error || "Unknown error"),
-        "error"
-      );
-    }
-  } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error";
-    showToast(tab.id, "Error saving to Lunatask: " + errorMessage, "error");
   }
+
+  const note = formatTaskNote(content, mode);
+
+  const result = await saveToLunatask(
+    credentials.userId,
+    credentials.authToken,
+    title,
+    note
+  );
+
+  if (result.status === 201) {
+    return { success: true };
+  }
+
+  return { success: false, error: result.error || "Unknown error" };
+}
+
+browser.runtime.onMessage.addListener((message) => {
+  if (message.type === "SAVE_PAGE") {
+    return handleSavePage(message.mode as SaveMode);
+  }
+  return Promise.resolve();
 });

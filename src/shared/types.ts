@@ -20,11 +20,3 @@ export interface ExtractedContent {
 }
 
 export type SaveMode = "url" | "content";
-
-export interface ExtensionSettings {
-  saveMode: SaveMode;
-}
-
-export const DEFAULT_SETTINGS: ExtensionSettings = {
-  saveMode: "url",
-};

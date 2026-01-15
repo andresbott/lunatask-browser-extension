@@ -1,54 +1,35 @@
 /**
  * Options Page Script
- * Handles settings form for ID, Auth Token, and save mode
+ * Handles settings form for Area ID and Auth Token
  */
 
 import browser from "webextension-polyfill";
-import {
-  DEFAULT_SETTINGS,
-  type Credentials,
-  type ExtensionSettings,
-  type SaveMode,
-} from "../shared/types";
+import type { Credentials } from "../shared/types";
 
-// DOM Elements
 const form = document.getElementById("settings-form") as HTMLFormElement;
 const userIdInput = document.getElementById("user-id") as HTMLInputElement;
 const authTokenInput = document.getElementById("auth-token") as HTMLInputElement;
 const toggleTokenBtn = document.getElementById("toggle-token") as HTMLButtonElement;
 const statusMessage = document.getElementById("status-message") as HTMLDivElement;
-const saveModeRadios = document.querySelectorAll<HTMLInputElement>(
-  'input[name="save-mode"]'
-);
 
 async function init() {
-  // Load saved credentials and settings
-  const data = await browser.storage.local.get(["credentials", "extensionSettings"]);
+  const data = await browser.storage.local.get("credentials");
   const credentials = data.credentials as Credentials | undefined;
-  const settings = data.extensionSettings as ExtensionSettings | undefined;
 
   if (credentials) {
     userIdInput.value = credentials.userId || "";
     authTokenInput.value = credentials.authToken || "";
   }
 
-  // Set save mode radio button
-  const saveMode = settings?.saveMode || DEFAULT_SETTINGS.saveMode;
-  saveModeRadios.forEach((radio) => {
-    radio.checked = radio.value === saveMode;
-  });
-
   setupEventListeners();
 }
 
 function setupEventListeners() {
-  // Form submission
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
-    await saveSettings();
+    await saveCredentials();
   });
 
-  // Toggle token visibility
   toggleTokenBtn.addEventListener("click", () => {
     if (authTokenInput.type === "password") {
       authTokenInput.type = "text";
@@ -60,24 +41,17 @@ function setupEventListeners() {
   });
 }
 
-async function saveSettings() {
+async function saveCredentials() {
   const credentials: Credentials = {
     userId: userIdInput.value.trim(),
     authToken: authTokenInput.value.trim(),
   };
 
-  const selectedMode = document.querySelector<HTMLInputElement>(
-    'input[name="save-mode"]:checked'
-  );
-  const extensionSettings: ExtensionSettings = {
-    saveMode: (selectedMode?.value as SaveMode) || "url",
-  };
-
   try {
-    await browser.storage.local.set({ credentials, extensionSettings });
+    await browser.storage.local.set({ credentials });
     showStatus("Settings saved successfully!", "success");
   } catch (error) {
-    console.error("[Lunatask] Error saving settings:", error);
+    console.error("[Lunatask] Error saving credentials:", error);
     showStatus("Failed to save settings", "error");
   }
 }
@@ -86,7 +60,6 @@ function showStatus(message: string, type: "success" | "error") {
   statusMessage.textContent = message;
   statusMessage.className = `status-message ${type}`;
 
-  // Auto-hide after 3 seconds
   setTimeout(() => {
     statusMessage.className = "status-message";
   }, 3000);
