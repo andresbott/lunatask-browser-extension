@@ -1,40 +1,48 @@
 /**
  * Content Script
  * Runs in the context of web pages
+ * Handles page content extraction via Defuddle
  */
 
 import browser from "webextension-polyfill";
+import Defuddle from "defuddle";
+import TurndownService from "turndown";
+import type { ExtractedContent } from "../shared/types";
 
-interface Settings {
-  enabled: boolean;
-  theme: string;
-}
+const turndown = new TurndownService({
+  headingStyle: "atx",
+  codeBlockStyle: "fenced",
+});
 
-async function init() {
-  console.log("[Lunatask] Content script loaded on:", window.location.href);
+function extractPageContent(): ExtractedContent {
+  const result = new Defuddle(document, {
+    url: window.location.href,
+  }).parse();
 
-  // Get settings directly from storage
-  const data = await browser.storage.local.get("settings");
-  const settings = data.settings as Settings | undefined;
+  const markdown = turndown.turndown(result.content || "");
 
-  if (!settings?.enabled) {
-    console.log("[Lunatask] Extension is disabled");
-    return;
-  }
-
-  // Your content script logic here
-  setupMessageListener();
+  return {
+    title: result.title || document.title,
+    content: markdown,
+    url: window.location.href,
+  };
 }
 
 function setupMessageListener() {
-  // Listen for messages from popup
+  // Listen for messages from background script
   browser.runtime.onMessage.addListener((message) => {
     console.log("[Lunatask] Content script received message:", message);
 
     switch (message.type) {
-      case "EXECUTE_ACTION":
-        // Handle actions triggered from popup
-        return Promise.resolve({ success: true });
+      case "EXTRACT_PAGE_CONTENT":
+        try {
+          const extracted = extractPageContent();
+          return Promise.resolve({ success: true, data: extracted });
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : "Unknown error";
+          return Promise.resolve({ success: false, error: errorMessage });
+        }
 
       case "GET_PAGE_INFO":
         return Promise.resolve({
@@ -48,9 +56,4 @@ function setupMessageListener() {
   });
 }
 
-// Initialize when DOM is ready
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", init);
-} else {
-  init();
-}
+setupMessageListener();

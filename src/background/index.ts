@@ -4,13 +4,62 @@
  */
 
 import browser from "webextension-polyfill";
-import type { Credentials, TaskResponse } from "../shared/types";
+import {
+  DEFAULT_SETTINGS,
+  type Credentials,
+  type ExtensionSettings,
+  type ExtractedContent,
+  type TaskResponse,
+} from "../shared/types";
+
+async function getSettings(): Promise<ExtensionSettings> {
+  const data = await browser.storage.local.get("extensionSettings");
+  return (data.extensionSettings as ExtensionSettings) || DEFAULT_SETTINGS;
+}
+
+async function extractContentFromTab(
+  tabId: number
+): Promise<ExtractedContent | null> {
+  try {
+    const response = await browser.tabs.sendMessage(tabId, {
+      type: "EXTRACT_PAGE_CONTENT",
+    });
+    if (response?.success && response.data) {
+      return response.data as ExtractedContent;
+    }
+    console.error("[Lunatask] Content extraction failed:", response?.error);
+    return null;
+  } catch (error) {
+    console.error(
+      "[Lunatask] Failed to communicate with content script:",
+      error
+    );
+    return null;
+  }
+}
+
+function formatTaskNote(
+  content: ExtractedContent,
+  saveMode: "url" | "content"
+): string {
+  if (saveMode === "url" || !content.content) {
+    return `<${content.url}>`;
+  }
+  return `Source: <${content.url}>
+
+---
+
+${content.content}
+
+[editor_v2]::`; // TODO: remove once Lunatask's API is updated to parse the
+                // new Markdown format
+}
 
 async function saveToLunatask(
   areaId: string,
   token: string,
   title: string,
-  url: string
+  note: string
 ): Promise<TaskResponse> {
   const options = {
     method: "POST",
@@ -23,7 +72,7 @@ async function saveToLunatask(
       task: {
         area_id: areaId,
         name: title,
-        note: "<" + url + ">",
+        note: note,
       },
     }),
   };
@@ -130,12 +179,33 @@ browser.action.onClicked.addListener(async (tab) => {
     return;
   }
 
+  const settings = await getSettings();
+
   try {
+    let title = tab.title;
+    let content: ExtractedContent = { title: tab.title, url: tab.url, content: "" };
+
+    if (settings.saveMode === "content") {
+      const extracted = await extractContentFromTab(tab.id);
+      if (!extracted) {
+        showToast(
+          tab.id,
+          "Failed to extract page content. Saving URL instead.",
+          "warning"
+        );
+      } else {
+        content = extracted;
+        title = extracted.title || tab.title;
+      }
+    }
+
+    const note = formatTaskNote(content, settings.saveMode);
+
     const result = await saveToLunatask(
       credentials.userId,
       credentials.authToken,
-      tab.title,
-      tab.url
+      title,
+      note
     );
 
     if (result.status === 201) {
