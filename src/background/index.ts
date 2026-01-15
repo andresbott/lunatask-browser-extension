@@ -5,7 +5,7 @@
 
 import browser from "webextension-polyfill";
 import type {
-  Credentials,
+  Config,
   ExtractedContent,
   SaveMode,
   TaskResponse,
@@ -91,7 +91,7 @@ async function handleSavePage(
   }
 
   const data = await browser.storage.local.get("credentials");
-  const credentials = data.credentials as Credentials | undefined;
+  const credentials = data.credentials as Config | undefined;
 
   if (!credentials?.areaId || !credentials?.authToken) {
     browser.runtime.openOptionsPage();

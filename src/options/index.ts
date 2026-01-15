@@ -4,7 +4,7 @@
  */
 
 import browser from "webextension-polyfill";
-import type { Credentials } from "../shared/types";
+import type { Config } from "../shared/types";
 
 const form = document.getElementById("settings-form") as HTMLFormElement;
 const areaIdInput = document.getElementById("area-id") as HTMLInputElement;
@@ -14,7 +14,7 @@ const statusMessage = document.getElementById("status-message") as HTMLDivElemen
 
 async function init() {
   const data = await browser.storage.local.get("credentials");
-  const credentials = data.credentials as Credentials | undefined;
+  const credentials = data.credentials as Config | undefined;
 
   if (credentials) {
     areaIdInput.value = credentials.areaId || "";
@@ -42,7 +42,7 @@ function setupEventListeners() {
 }
 
 async function saveCredentials() {
-  const credentials: Credentials = {
+  const credentials: Config = {
     areaId: areaIdInput.value.trim(),
     authToken: authTokenInput.value.trim(),
   };

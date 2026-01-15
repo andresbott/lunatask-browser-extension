@@ -2,7 +2,7 @@
  * Shared types used across extension components
  */
 
-export interface Credentials {
+export interface Config {
   areaId: string;
   authToken: string;
 }
