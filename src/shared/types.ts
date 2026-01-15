@@ -3,7 +3,7 @@
  */
 
 export interface Credentials {
-  userId: string;
+  areaId: string;
   authToken: string;
 }
 

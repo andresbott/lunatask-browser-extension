@@ -93,7 +93,7 @@ async function handleSavePage(
   const data = await browser.storage.local.get("credentials");
   const credentials = data.credentials as Credentials | undefined;
 
-  if (!credentials?.userId || !credentials?.authToken) {
+  if (!credentials?.areaId || !credentials?.authToken) {
     browser.runtime.openOptionsPage();
     return { success: false, error: "Please configure credentials first" };
   }
@@ -116,7 +116,7 @@ async function handleSavePage(
   const note = formatTaskNote(content, mode);
 
   const result = await saveToLunatask(
-    credentials.userId,
+    credentials.areaId,
     credentials.authToken,
     title,
     note

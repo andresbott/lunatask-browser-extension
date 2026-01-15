@@ -7,7 +7,7 @@ import browser from "webextension-polyfill";
 import type { Credentials } from "../shared/types";
 
 const form = document.getElementById("settings-form") as HTMLFormElement;
-const userIdInput = document.getElementById("user-id") as HTMLInputElement;
+const areaIdInput = document.getElementById("area-id") as HTMLInputElement;
 const authTokenInput = document.getElementById("auth-token") as HTMLInputElement;
 const toggleTokenBtn = document.getElementById("toggle-token") as HTMLButtonElement;
 const statusMessage = document.getElementById("status-message") as HTMLDivElement;
@@ -17,7 +17,7 @@ async function init() {
   const credentials = data.credentials as Credentials | undefined;
 
   if (credentials) {
-    userIdInput.value = credentials.userId || "";
+    areaIdInput.value = credentials.areaId || "";
     authTokenInput.value = credentials.authToken || "";
   }
 
@@ -43,7 +43,7 @@ function setupEventListeners() {
 
 async function saveCredentials() {
   const credentials: Credentials = {
-    userId: userIdInput.value.trim(),
+    areaId: areaIdInput.value.trim(),
     authToken: authTokenInput.value.trim(),
   };
 
