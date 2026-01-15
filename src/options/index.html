@@ -42,6 +42,26 @@
             </button>
           </div>
 
+          <fieldset class="form-group save-mode-group">
+            <legend class="form-label">Save Mode</legend>
+            <div class="radio-options">
+              <label class="radio-option">
+                <input type="radio" name="save-mode" value="url" checked />
+                <span class="radio-label">
+                  <span class="radio-title">URL only</span>
+                  <span class="radio-description">Save just the page link</span>
+                </span>
+              </label>
+              <label class="radio-option">
+                <input type="radio" name="save-mode" value="content" />
+                <span class="radio-label">
+                  <span class="radio-title">Page content</span>
+                  <span class="radio-description">Save the page as Markdown</span>
+                </span>
+              </label>
+            </div>
+          </fieldset>
+
           <div class="form-actions">
             <button type="submit" class="btn-save">Save Settings</button>
           </div>

@@ -12,3 +12,13 @@ export interface TaskResponse {
   data?: unknown;
   error?: string;
 }
+
+export type SaveMode = "url" | "content";
+
+export interface ExtensionSettings {
+  saveMode: SaveMode;
+}
+
+export const DEFAULT_SETTINGS: ExtensionSettings = {
+  saveMode: "url",
+};
