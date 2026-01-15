@@ -14,6 +14,23 @@ const turndown = new TurndownService({
   codeBlockStyle: "fenced",
 });
 
+turndown.addRule("absoluteImages", {
+  filter: "img",
+  replacement: function (_content, node) {
+    const element = node as HTMLImageElement;
+    const src = element.getAttribute("src");
+    const alt = element.getAttribute("alt") || "";
+    if (!src) return "";
+
+    try {
+      const absoluteSrc = new URL(src, window.location.href).href;
+      return `![${alt}](${absoluteSrc})`;
+    } catch {
+      return `![${alt}](${src})`;
+    }
+  },
+});
+
 function extractPageContent(): ExtractedContent {
   const result = new Defuddle(document, {
     url: window.location.href,
