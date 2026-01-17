@@ -12,6 +12,8 @@ import type {
   TaskResponse,
 } from "../shared/types";
 
+const API_BASE = "https://api.lunatask.app/v1";
+
 async function extractContentFromTab(
   tabId: number
 ): Promise<ExtractedContent | null> {
@@ -77,7 +79,7 @@ async function saveToLunatask(
     body: JSON.stringify({ task }),
   };
 
-  const response = await fetch("https://api.lunatask.app/v1/tasks", options);
+  const response = await fetch(`${API_BASE}/tasks`, options);
 
   if (response.status !== 201) {
     const data = await response.json();
@@ -112,7 +114,7 @@ async function saveNoteToLunatask(
     body: JSON.stringify(note),
   };
 
-  const response = await fetch("https://api.lunatask.app/v1/notes", options);
+  const response = await fetch(`${API_BASE}/notes`, options);
 
   if (response.status === 200 || response.status === 201) {
     const data = (await response.json()) as { note: { id: string } };
