@@ -20,5 +20,10 @@
     "vite": "^5.2.0",
     "vite-plugin-web-extension": "^4.1.0",
     "webextension-polyfill": "^0.11.0"
+  },
+  "dependencies": {
+    "@types/turndown": "^5.0.6",
+    "defuddle": "^0.6.6",
+    "turndown": "^7.2.2"
   }
 }
