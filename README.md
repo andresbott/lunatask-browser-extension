@@ -2,7 +2,7 @@
 
 Save any webpage as a task in [Lunatask](https://lunatask.app) with one click.
 
-
+![img.jpg](img.jpg)
 ## Setup
 
 1. Install the extension
