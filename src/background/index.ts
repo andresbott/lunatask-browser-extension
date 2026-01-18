@@ -56,17 +56,25 @@ async function saveToLunatask(
   areaId: string,
   token: string,
   title: string,
-  note: string,
-  goalId?: string
+  note?: string,
+  goalId?: string,
+  href?: string
 ): Promise<TaskResponse> {
   const task: Record<string, string> = {
     area_id: areaId,
     name: title,
-    note: note,
   };
+
+  if (note) {
+    task.note = note;
+  }
 
   if (goalId) {
     task.goal_id = goalId;
+  }
+
+  if (href) {
+    task.href = href;
   }
 
   const options = {
@@ -232,14 +240,15 @@ async function handleSaveNote(
   }
 
   if (linkTask && noteResult.noteId) {
-    const taskNote = `[${title}](lunatask://notes/${noteResult.noteId})`;
+    const noteHref = `lunatask://notes/${noteResult.noteId}`;
 
     const taskResult = await saveToLunatask(
       credentials.areaId!,
       credentials.authToken,
       title,
-      taskNote,
-      credentials.goalId
+      undefined,
+      credentials.goalId,
+      noteHref
     );
 
     if (taskResult.status !== 201) {
