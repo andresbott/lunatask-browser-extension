@@ -82,5 +82,6 @@ export default defineConfig(({ mode }) => ({
   build: {
     outDir: mode === "firefox" ? "dist-firefox" : "dist",
     emptyOutDir: true,
+    minify: false,
   },
 }));
