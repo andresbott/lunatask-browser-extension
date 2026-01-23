@@ -241,12 +241,13 @@ async function handleSaveNote(
 
   if (linkTask && noteResult.noteId) {
     const noteHref = `lunatask://notes/${noteResult.noteId}`;
+    const taskNote = `Note: [${title}](${noteHref})`;
 
     const taskResult = await saveToLunatask(
       credentials.areaId!,
       credentials.authToken,
       title,
-      undefined,
+      taskNote,
       credentials.goalId,
       noteHref
     );
