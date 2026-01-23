@@ -61,7 +61,7 @@ export default defineConfig(({ mode }) => ({
           (manifest as any).browser_specific_settings = {
             gecko: {
               id: FIREFOX_ADDON_ID,
-              strict_min_version: "109.0",
+              strict_min_version: "142.0",
               // Required for new AMO submissions
               // https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/manifest.json/browser_specific_settings
               data_collection_permissions: {
