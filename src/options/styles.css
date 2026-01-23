@@ -3,10 +3,10 @@
   --accent-hover: #2563EB;
   --focus-ring: rgba(59, 130, 246, 0.35);
 
-  --bg-primary: #f6f7fb;
-  --bg-secondary: #ffffff;
+  --bg-primary: #fdfaf9;
+  --bg-secondary: #fdfaf9;
   --bg-card: #ffffff;
-  --bg-input: #ffffff;
+  --bg-input: #fdfaf9;
 
   --text-primary: #111827;
   --text-secondary: #6B7280;
@@ -29,14 +29,14 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg-primary: #2d3142;
-    --bg-secondary: #2a2e3d;
-    --bg-card: #3a3f54;
-    --bg-input: #2d3142;
+    --bg-primary: #252130;
+    --bg-secondary: #252130;
+    --bg-card: #2b2736;
+    --bg-input: #252130;
 
-    --text-primary: rgba(255, 255, 255, 0.92);
-    --text-secondary: rgba(255, 255, 255, 0.68);
-    --text-muted: rgba(255, 255, 255, 0.6);
+    --text-primary: #ffffff;
+    --text-secondary: #b3bac5;
+    --text-muted: #b3bac5;
 
     --border-color: rgba(255, 255, 255, 0.10);
     --border-strong: rgba(255, 255, 255, 0.16);

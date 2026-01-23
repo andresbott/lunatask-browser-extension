@@ -26,13 +26,13 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg-surface: #3a3f54;
+    --bg-surface: #2b2736;
     --bg-button: rgba(255, 255, 255, 0.08);
     --bg-button-hover: rgba(255, 255, 255, 0.12);
 
-    --text-primary: rgba(255, 255, 255, 0.92);
-    --text-secondary: rgba(255, 255, 255, 0.68);
-    --text-muted: rgba(255, 255, 255, 0.6);
+    --text-primary: #ffffff;
+    --text-secondary: #b3bac5;
+    --text-muted: #b3bac5;
 
     --border-color: rgba(255, 255, 255, 0.08);
 
