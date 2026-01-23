@@ -61,8 +61,11 @@ function setupMessageListener() {
 
       case "GET_PAGE_INFO":
         return Promise.resolve({
-          url: window.location.href,
-          title: document.title,
+          success: true,
+          data: {
+            url: window.location.href,
+            title: document.title,
+          },
         });
 
       default:
