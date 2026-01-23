@@ -4,7 +4,7 @@
  */
 
 import browser from "webextension-polyfill";
-import type { SaveMode } from "../shared/types";
+import type { Config, SaveMode } from "../shared/types";
 
 const saveUrlBtn = document.getElementById("save-url") as HTMLButtonElement;
 const saveContentBtn = document.getElementById("save-content") as HTMLButtonElement;
@@ -19,9 +19,16 @@ const originalLabels = {
   note: saveNoteBtn.textContent,
 };
 
-async function loadCheckboxPreference() {
-  const data = await browser.storage.local.get("linkTaskPreference");
-  if (typeof data.linkTaskPreference === "boolean") {
+async function initPopup() {
+  const data = await browser.storage.local.get(["credentials", "linkTaskPreference"]);
+  const credentials = data.credentials as Config | undefined;
+  const hasAreaId = Boolean(credentials?.areaId?.trim());
+
+  if (!hasAreaId) {
+    saveUrlBtn.style.display = "none";
+    linkTaskCheckbox.checked = false;
+    linkTaskCheckbox.disabled = true;
+  } else if (typeof data.linkTaskPreference === "boolean") {
     linkTaskCheckbox.checked = data.linkTaskPreference;
   }
 }
@@ -102,7 +109,7 @@ async function handleSaveNote() {
   }
 }
 
-loadCheckboxPreference();
+initPopup();
 linkTaskCheckbox.addEventListener("change", saveCheckboxPreference);
 saveUrlBtn.addEventListener("click", () => handleSave("url"));
 saveContentBtn.addEventListener("click", () => handleSave("content"));

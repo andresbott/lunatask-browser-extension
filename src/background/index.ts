@@ -14,25 +14,67 @@ import type {
 
 const API_BASE = "https://api.lunatask.app/v1";
 
+type ContentScriptResponse<T> =
+  | { success: true; data: T }
+  | { success: false; error: string };
+
+async function sendMessageWithOptionalInjection<T>(
+  tabId: number,
+  message: unknown
+): Promise<ContentScriptResponse<T>> {
+  try {
+    return (await browser.tabs.sendMessage(
+      tabId,
+      message
+    )) as ContentScriptResponse<T>;
+  } catch (_err) {
+    // Content scripts are injected on-demand to avoid broad host permissions.
+    try {
+      await browser.scripting.executeScript({
+        target: { tabId },
+        files: ["src/content/index.js"],
+      });
+    } catch (error) {
+      console.error("[Lunatask] Failed to inject content script:", error);
+      return { success: false, error: "Failed to inject content script" };
+    }
+
+    try {
+      return (await browser.tabs.sendMessage(
+        tabId,
+        message
+      )) as ContentScriptResponse<T>;
+    } catch (error) {
+      console.error("[Lunatask] Failed to communicate with content script:", error);
+      return { success: false, error: "Failed to communicate with content script" };
+    }
+  }
+}
+
 async function extractContentFromTab(
   tabId: number
 ): Promise<ExtractedContent | null> {
-  try {
-    const response = await browser.tabs.sendMessage(tabId, {
-      type: "EXTRACT_PAGE_CONTENT",
-    });
-    if (response?.success && response.data) {
-      return response.data as ExtractedContent;
-    }
-    console.error("[Lunatask] Content extraction failed:", response?.error);
-    return null;
-  } catch (error) {
-    console.error(
-      "[Lunatask] Failed to communicate with content script:",
-      error
-    );
-    return null;
-  }
+  const response = await sendMessageWithOptionalInjection<ExtractedContent>(
+    tabId,
+    { type: "EXTRACT_PAGE_CONTENT" }
+  );
+
+  if (response.success) return response.data;
+  console.error("[Lunatask] Content extraction failed:", response.error);
+  return null;
+}
+
+async function getPageInfoFromTab(
+  tabId: number
+): Promise<{ url: string; title: string } | null> {
+  const response = await sendMessageWithOptionalInjection<{
+    url: string;
+    title: string;
+  }>(tabId, { type: "GET_PAGE_INFO" });
+
+  if (response.success) return response.data;
+  console.error("[Lunatask] Failed to get page info:", response.error);
+  return null;
 }
 
 function formatTaskNote(
@@ -142,8 +184,13 @@ async function handleSavePage(
 ): Promise<{ success: boolean; error?: string }> {
   const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
 
-  if (!tab?.id || !tab.url || !tab.title) {
+  if (!tab?.id) {
     return { success: false, error: "No active tab" };
+  }
+
+  const pageInfo = await getPageInfoFromTab(tab.id);
+  if (!pageInfo?.url || !pageInfo.title) {
+    return { success: false, error: "Failed to read current page" };
   }
 
   const data = await browser.storage.local.get("credentials");
@@ -154,10 +201,10 @@ async function handleSavePage(
     return { success: false, error: "Please configure credentials first" };
   }
 
-  let title = tab.title;
+  let title = pageInfo.title;
   let content: ExtractedContent = {
-    title: tab.title,
-    url: tab.url,
+    title: pageInfo.title,
+    url: pageInfo.url,
     content: "",
   };
 
@@ -165,7 +212,7 @@ async function handleSavePage(
     const extracted = await extractContentFromTab(tab.id);
     if (extracted) {
       content = extracted;
-      title = extracted.title || tab.title;
+      title = extracted.title || pageInfo.title;
     }
   }
 
@@ -202,8 +249,13 @@ async function handleSaveNote(
 ): Promise<{ success: boolean; error?: string }> {
   const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
 
-  if (!tab?.id || !tab.url || !tab.title) {
+  if (!tab?.id) {
     return { success: false, error: "No active tab" };
+  }
+
+  const pageInfo = await getPageInfoFromTab(tab.id);
+  if (!pageInfo?.url || !pageInfo.title) {
+    return { success: false, error: "Failed to read current page" };
   }
 
   const data = await browser.storage.local.get("credentials");
@@ -221,11 +273,11 @@ async function handleSaveNote(
 
   const extracted = await extractContentFromTab(tab.id);
   const content: ExtractedContent = extracted || {
-    title: tab.title,
-    url: tab.url,
+    title: pageInfo.title,
+    url: pageInfo.url,
     content: "",
   };
-  const title = content.title || tab.title;
+  const title = content.title || pageInfo.title;
   const noteContent = formatNoteContent(content);
 
   const noteResult = await saveNoteToLunatask(

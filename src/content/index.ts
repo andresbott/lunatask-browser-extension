@@ -48,8 +48,6 @@ function extractPageContent(): ExtractedContent {
 function setupMessageListener() {
   // Listen for messages from background script
   browser.runtime.onMessage.addListener((message) => {
-    console.log("[Lunatask] Content script received message:", message);
-
     switch (message.type) {
       case "EXTRACT_PAGE_CONTENT":
         try {
