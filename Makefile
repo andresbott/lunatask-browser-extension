@@ -14,6 +14,17 @@ dev: ## start development build with watch mode
 	@npm run dev
 
 #==========================================================================================
+##@ Assets
+#==========================================================================================
+
+icons: assets/icon.png ## generate optimized icons from source
+	@for size in 16 32 48 128; do \
+		convert $< -trim +repage -resize $${size}x$${size} -strip public/icons/icon-$${size}.png; \
+	done
+	@oxipng -o max --strip safe -q public/icons/*.png
+	@echo "Generated icons: 16, 32, 48, 128"
+
+#==========================================================================================
 ##@ Building
 #==========================================================================================
 
