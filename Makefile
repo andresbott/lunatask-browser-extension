@@ -96,4 +96,4 @@ clean-all: clean ## remove all generated files
 help: ## display this help
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
-.PHONY: install dev build build-firefox build-all lint typecheck check package package-firefox package-all clean clean-all
+.PHONY: install dev icons build build-firefox build-all lint typecheck check package package-firefox package-all clean clean-all
