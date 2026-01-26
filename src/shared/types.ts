@@ -6,11 +6,18 @@ export interface Config {
   areaId: string;
   authToken: string;
   goalId?: string;
+  notebookId?: string;
 }
 
 export interface TaskResponse {
   status: number;
   data?: unknown;
+  error?: string;
+}
+
+export interface NoteResponse {
+  status: number;
+  noteId?: string;
   error?: string;
 }
 
