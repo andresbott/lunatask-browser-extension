@@ -54,11 +54,13 @@ check: lint typecheck ## run all quality checks
 
 package: build ## create Chrome extension zip for distribution
 	@mkdir -p releases
+	@for f in ../LICENSE* LICENSE*; do if [ -f "$$f" ]; then cp "$$f" dist/; fi; done
 	@cd dist && zip -r ../releases/$(PROJECT_NAME)-chrome-v$(VERSION).zip .
 	@echo "Created: releases/$(PROJECT_NAME)-chrome-v$(VERSION).zip"
 
 package-firefox: build-firefox ## create Firefox extension zip for distribution
 	@mkdir -p releases
+	@for f in ../LICENSE* LICENSE*; do if [ -f "$$f" ]; then cp "$$f" dist-firefox/; fi; done
 	@cd dist-firefox && zip -r ../releases/$(PROJECT_NAME)-firefox-v$(VERSION).zip .
 	@echo "Created: releases/$(PROJECT_NAME)-firefox-v$(VERSION).zip"
 
