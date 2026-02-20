@@ -26,6 +26,7 @@ async function initPopup() {
 
   if (!hasAreaId) {
     saveUrlBtn.style.display = "none";
+    saveContentBtn.style.display = "none";
     linkTaskCheckbox.checked = false;
     linkTaskCheckbox.disabled = true;
   } else if (typeof data.linkTaskPreference === "boolean") {
