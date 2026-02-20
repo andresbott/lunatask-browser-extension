@@ -79,7 +79,7 @@ function applyButtonState(state: Awaited<ReturnType<typeof getCredentialsState>>
     settingsHint.style.display = "block";
     const missing: string[] = [];
     if (!state.hasAreaId) missing.push("area ID");
-    if (!state.hasAuthToken) missing.push("auth token");
+    if (!state.hasAuthToken) missing.push("access token");
     settingsHint.textContent = `Missing: ${missing.join(", ")}`;
   } else {
     openSettingsBtn.style.display = "none";
