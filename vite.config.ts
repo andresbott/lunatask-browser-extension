@@ -55,6 +55,7 @@ export default defineConfig(({ mode }) => ({
               ? { scripts: ["src/background/index.ts"], type: "module" as const }
               : { service_worker: "src/background/index.ts", type: "module" as const },
           permissions: ["storage", "activeTab", "scripting"],
+          host_permissions: ["https://api.lunatask.app/*"],
         };
 
         // Firefox-specific adjustments
