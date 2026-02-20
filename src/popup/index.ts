@@ -28,13 +28,11 @@ async function getCredentialsState() {
   const credentials = data.credentials as Config | undefined;
   const hasAreaId = Boolean(credentials?.areaId?.trim());
   const hasAuthToken = Boolean(credentials?.authToken?.trim());
-  const hasNotebookId = Boolean(credentials?.notebookId?.trim());
   return {
     hasAreaId,
     hasAuthToken,
-    hasNotebookId,
-    missingCore: !hasAreaId || !hasAuthToken,
-    missingNotebook: !hasNotebookId,
+    missingCore: !hasAuthToken,
+    missingAreaIdForTask: !hasAreaId,
     linkTaskPreference: data.linkTaskPreference as boolean | undefined,
   };
 }
@@ -54,15 +52,25 @@ function applyButtonState(state: Awaited<ReturnType<typeof getCredentialsState>>
     saveNoteBtn.disabled = false;
     linkTaskCheckbox.disabled = false;
 
-    if (state.missingNotebook) {
-      saveNoteBtn.disabled = true;
+    // Task creation (url/content modes) requires areaId
+    if (state.missingAreaIdForTask) {
+      saveUrlBtn.disabled = true;
+      saveContentBtn.disabled = true;
+      // Also disable link task checkbox since linking requires areaId
       linkTaskCheckbox.checked = false;
       linkTaskCheckbox.disabled = true;
     }
+
   }
-  // Set checkbox preference if we have core credentials
-  if (!state.missingCore && typeof state.linkTaskPreference === "boolean") {
-    linkTaskCheckbox.checked = state.linkTaskPreference;
+  // Set checkbox preference if we have core credentials and areaId (needed for linking)
+  if (!state.missingCore && !state.missingAreaIdForTask) {
+    linkTaskCheckbox.disabled = false;
+    if (typeof state.linkTaskPreference === "boolean") {
+      linkTaskCheckbox.checked = state.linkTaskPreference;
+    } else {
+      // Default to enabled if no preference set
+      linkTaskCheckbox.checked = true;
+    }
   }
   // Show settings button and hint only when all buttons are disabled
   const allDisabled = saveUrlBtn.disabled && saveContentBtn.disabled && saveNoteBtn.disabled;
@@ -72,7 +80,6 @@ function applyButtonState(state: Awaited<ReturnType<typeof getCredentialsState>>
     const missing: string[] = [];
     if (!state.hasAreaId) missing.push("area ID");
     if (!state.hasAuthToken) missing.push("auth token");
-    if (!state.hasNotebookId) missing.push("notebook ID");
     settingsHint.textContent = `Missing: ${missing.join(", ")}`;
   } else {
     openSettingsBtn.style.display = "none";
