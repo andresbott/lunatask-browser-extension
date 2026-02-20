@@ -51,7 +51,7 @@ function setupEventListeners() {
     toggleTokenBtn.setAttribute("aria-pressed", String(isHidden));
     toggleTokenBtn.setAttribute(
       "aria-label",
-      isHidden ? "Hide auth token" : "Show auth token"
+      isHidden ? "Hide access token" : "Show access token"
     );
   });
 
