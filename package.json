@@ -5,8 +5,7 @@
   "homepage": "https://github.com/andresbott/lunatask-browser-extension",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/andresbott/lunatask-browser-extension.git",
-    "directory": "src"
+    "url": "git+https://github.com/andresbott/lunatask-browser-extension.git"
   },
   "type": "module",
   "scripts": {
