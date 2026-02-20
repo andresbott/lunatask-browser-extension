@@ -85,6 +85,26 @@ async function getPageInfoFromTab(
   return null;
 }
 
+/**
+ * Get page URL and title, preferring tab properties (no injection)
+ * and falling back to content script only when needed.
+ */
+async function getPageInfo(
+  tab: browser.Tabs.Tab
+): Promise<{ url: string; title: string } | null> {
+  // Prefer tab properties directly - no content script injection needed
+  if (tab.url && tab.title) {
+    return { url: tab.url, title: tab.title };
+  }
+
+  // Fall back to content script for restricted contexts
+  if (tab.id) {
+    return getPageInfoFromTab(tab.id);
+  }
+
+  return null;
+}
+
 function formatTaskNote(
   content: ExtractedContent,
   saveMode: SaveMode
@@ -192,11 +212,11 @@ async function handleSavePage(
 ): Promise<{ success: boolean; error?: string }> {
   const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
 
-  if (!tab?.id) {
+  if (!tab) {
     return { success: false, error: "No active tab" };
   }
 
-  const pageInfo = await getPageInfoFromTab(tab.id);
+  const pageInfo = await getPageInfo(tab);
   if (!pageInfo?.url || !pageInfo.title) {
     return { success: false, error: "Failed to read current page" };
   }
@@ -217,6 +237,9 @@ async function handleSavePage(
   };
 
   if (mode === "content") {
+    if (!tab.id) {
+      return { success: false, error: "Cannot extract content from this page" };
+    }
     const extracted = await extractContentFromTab(tab.id);
     if (extracted) {
       content = extracted;
@@ -261,7 +284,7 @@ async function handleSaveNote(
     return { success: false, error: "No active tab" };
   }
 
-  const pageInfo = await getPageInfoFromTab(tab.id);
+  const pageInfo = await getPageInfo(tab);
   if (!pageInfo?.url || !pageInfo.title) {
     return { success: false, error: "Failed to read current page" };
   }
