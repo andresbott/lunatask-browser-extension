@@ -15,7 +15,8 @@ const HOMEPAGE_URL =
   pkg.homepage ?? "https://github.com/andresbott/lunatask-browser-extension";
 
 // Keep this stable across releases so Firefox updates work reliably.
-// Use a UUID to avoid embedding personal identifiers in the add-on ID.
+// Should be either a UUID or an email-like ID such as
+// lunatask-unofficial@andresbott
 const FIREFOX_ADDON_ID = "{80c56608-4763-4e54-aff7-02d95c06d0fb}";
 
 export default defineConfig(({ mode }) => ({
