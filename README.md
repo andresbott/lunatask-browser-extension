@@ -3,6 +3,11 @@
 Save any webpage as a task in [Lunatask](https://lunatask.app) with one click.
 
 ![img.jpg](img.jpg)
+
+## Privacy
+
+See `PRIVACY.md`.
+
 ## Setup
 
 1. Install the extension
@@ -37,4 +42,3 @@ npm run build:firefox
 **Chrome/Edge:** Go to `chrome://extensions`, enable Developer Mode, click "Load unpacked", select the `dist` folder.
 
 **Firefox:** Go to `about:debugging#/runtime/this-firefox`, click "Load Temporary Add-on", select any file in the `dist` folder.
-
