@@ -10,6 +10,9 @@
   <main class="popup" aria-labelledby="popup-title">
     <h1 id="popup-title" class="visually-hidden">Save to Lunatask</h1>
     
+    <button type="button" id="open-settings" class="save-btn" style="display: none; margin-bottom: 8px;">Open settings</button>
+    <p id="settings-hint" class="settings-hint" style="display: none;"></p>
+    
     <div class="section-label">Save to Lunatask</div>
     <div class="button-group" role="group" aria-label="Save options">
       <button type="button" id="save-url" class="save-btn">Save URL to task</button>
@@ -23,6 +26,7 @@
       </div>
     </div>
     
+    <div id="status-announcement" class="visually-hidden" aria-live="polite"></div>
   </main>
   <script type="module" src="index.ts"></script>
 </body>
