@@ -14,6 +14,14 @@ import type {
 
 const API_BASE = "https://api.lunatask.app/v1";
 
+// vite-plugin-web-extension guarantees stable output paths for additionalInputs
+// entries: trimExtension(input) + ".js", no hashing. A single hardcoded path is
+// fine for one script. If we add more injected scripts, consider switching to the
+// plugin's bundleInfoJsonPath option, which emits a build-time JSON map of input
+// paths to output paths — designed exactly for dynamic injection via
+// browser.scripting.executeScript.
+const CONTENT_SCRIPT = "src/content/index.js";
+
 type ContentScriptResponse<T> =
   | { success: true; data: T }
   | { success: false; error: string };
@@ -32,7 +40,7 @@ async function sendMessageWithOptionalInjection<T>(
     try {
       await browser.scripting.executeScript({
         target: { tabId },
-        files: ["src/content/index.js"],
+        files: [CONTENT_SCRIPT],
       });
     } catch (error) {
       console.error("[Lunatask] Failed to inject content script:", error);
