@@ -77,10 +77,7 @@ function applyButtonState(state: Awaited<ReturnType<typeof getCredentialsState>>
   if (allDisabled) {
     openSettingsBtn.style.display = "block";
     settingsHint.style.display = "block";
-    const missing: string[] = [];
-    if (!state.hasAreaId) missing.push("area ID");
-    if (!state.hasAuthToken) missing.push("access token");
-    settingsHint.textContent = `Missing: ${missing.join(", ")}`;
+    settingsHint.textContent = "Missing: access token";
   } else {
     openSettingsBtn.style.display = "none";
     settingsHint.style.display = "none";
@@ -120,9 +117,13 @@ async function resetButtons() {
   for (const btn of allButtons) {
     btn.classList.remove("success", "error");
   }
-  // Re-evaluate disabled state based on current credentials (no UI flash)
-  const state = await getCredentialsState();
-  applyButtonState(state);
+  try {
+    // Re-evaluate disabled state based on current credentials (no UI flash)
+    const state = await getCredentialsState();
+    applyButtonState(state);
+  } catch (_err) {
+    console.error("[Lunatask] Failed to re-evaluate credentials after reset:", _err);
+  }
 }
 
 async function handleSave(mode: SaveMode) {
