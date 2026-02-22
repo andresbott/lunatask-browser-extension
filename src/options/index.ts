@@ -8,11 +8,20 @@ import type { Config } from "../shared/types";
 
 const form = document.getElementById("settings-form") as HTMLFormElement;
 const areaIdInput = document.getElementById("area-id") as HTMLInputElement;
-const authTokenInput = document.getElementById("auth-token") as HTMLInputElement;
+const authTokenInput = document.getElementById("access-token") as HTMLInputElement;
 const goalIdInput = document.getElementById("goal-id") as HTMLInputElement;
 const notebookIdInput = document.getElementById("notebook-id") as HTMLInputElement;
 const toggleTokenBtn = document.getElementById("toggle-token") as HTMLButtonElement;
 const statusMessage = document.getElementById("status-message") as HTMLDivElement;
+
+function updateFieldStates() {
+  const hasToken = authTokenInput.value.trim().length > 0;
+  const hasAreaId = areaIdInput.value.trim().length > 0;
+
+  areaIdInput.disabled = !hasToken;
+  goalIdInput.disabled = !hasToken || !hasAreaId;
+  notebookIdInput.disabled = !hasToken;
+}
 
 async function init() {
   const data = await browser.storage.local.get("credentials");
@@ -25,6 +34,7 @@ async function init() {
     notebookIdInput.value = credentials.notebookId || "";
   }
 
+  updateFieldStates();
   setupEventListeners();
 }
 
@@ -35,14 +45,18 @@ function setupEventListeners() {
   });
 
   toggleTokenBtn.addEventListener("click", () => {
-    if (authTokenInput.type === "password") {
-      authTokenInput.type = "text";
-      toggleTokenBtn.textContent = "Hide";
-    } else {
-      authTokenInput.type = "password";
-      toggleTokenBtn.textContent = "Show";
-    }
+    const isHidden = authTokenInput.type === "password";
+    authTokenInput.type = isHidden ? "text" : "password";
+    toggleTokenBtn.textContent = isHidden ? "Hide" : "Show";
+    toggleTokenBtn.setAttribute("aria-pressed", String(isHidden));
+    toggleTokenBtn.setAttribute(
+      "aria-label",
+      isHidden ? "Hide access token" : "Show access token"
+    );
   });
+
+  authTokenInput.addEventListener("input", updateFieldStates);
+  areaIdInput.addEventListener("input", updateFieldStates);
 }
 
 async function saveCredentials() {

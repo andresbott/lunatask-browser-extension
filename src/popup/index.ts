@@ -4,12 +4,16 @@
  */
 
 import browser from "webextension-polyfill";
-import type { SaveMode } from "../shared/types";
+import type { Config, SaveMode } from "../shared/types";
 
 const saveUrlBtn = document.getElementById("save-url") as HTMLButtonElement;
 const saveContentBtn = document.getElementById("save-content") as HTMLButtonElement;
 const saveNoteBtn = document.getElementById("save-note") as HTMLButtonElement;
 const linkTaskCheckbox = document.getElementById("link-task-checkbox") as HTMLInputElement;
+const openSettingsBtn = document.getElementById("open-settings") as HTMLButtonElement;
+const settingsHint = document.getElementById("settings-hint") as HTMLParagraphElement;
+
+const statusAnnouncement = document.getElementById("status-announcement") as HTMLDivElement;
 
 const allButtons = [saveUrlBtn, saveContentBtn, saveNoteBtn];
 
@@ -19,11 +23,69 @@ const originalLabels = {
   note: saveNoteBtn.textContent,
 };
 
-async function loadCheckboxPreference() {
-  const data = await browser.storage.local.get("linkTaskPreference");
-  if (typeof data.linkTaskPreference === "boolean") {
-    linkTaskCheckbox.checked = data.linkTaskPreference;
+async function getCredentialsState() {
+  const data = await browser.storage.local.get(["credentials", "linkTaskPreference"]);
+  const credentials = data.credentials as Config | undefined;
+  const hasAreaId = Boolean(credentials?.areaId?.trim());
+  const hasAuthToken = Boolean(credentials?.authToken?.trim());
+  return {
+    hasAreaId,
+    hasAuthToken,
+    missingCore: !hasAuthToken,
+    missingAreaIdForTask: !hasAreaId,
+    linkTaskPreference: data.linkTaskPreference as boolean | undefined,
+  };
+}
+
+function applyButtonState(state: Awaited<ReturnType<typeof getCredentialsState>>) {
+  // Disable buttons based on missing credentials
+  if (state.missingCore) {
+    saveUrlBtn.disabled = true;
+    saveContentBtn.disabled = true;
+    saveNoteBtn.disabled = true;
+    linkTaskCheckbox.checked = false;
+    linkTaskCheckbox.disabled = true;
+  } else {
+    // Enable all buttons first
+    saveUrlBtn.disabled = false;
+    saveContentBtn.disabled = false;
+    saveNoteBtn.disabled = false;
+    linkTaskCheckbox.disabled = false;
+
+    // Task creation (url/content modes) requires areaId
+    if (state.missingAreaIdForTask) {
+      saveUrlBtn.disabled = true;
+      saveContentBtn.disabled = true;
+      // Also disable link task checkbox since linking requires areaId
+      linkTaskCheckbox.checked = false;
+      linkTaskCheckbox.disabled = true;
+    }
+
   }
+  // Set checkbox preference if we have core credentials and areaId (needed for linking)
+  if (!state.missingCore && !state.missingAreaIdForTask) {
+    linkTaskCheckbox.disabled = false;
+    if (typeof state.linkTaskPreference === "boolean") {
+      linkTaskCheckbox.checked = state.linkTaskPreference;
+    } else {
+      // Default to enabled if no preference set
+      linkTaskCheckbox.checked = true;
+    }
+  }
+  // Show settings button and hint only when all buttons are disabled
+  const allDisabled = saveUrlBtn.disabled && saveContentBtn.disabled && saveNoteBtn.disabled;
+  if (allDisabled) {
+    openSettingsBtn.style.display = "block";
+    settingsHint.style.display = "block";
+    settingsHint.textContent = "Missing: access token";
+  } else {
+    openSettingsBtn.style.display = "none";
+    settingsHint.style.display = "none";
+  }
+}
+async function initPopup() {
+  const state = await getCredentialsState();
+  applyButtonState(state);
 }
 
 function saveCheckboxPreference() {
@@ -44,15 +106,23 @@ function setButtonStatus(btn: HTMLButtonElement, message: string, type: "success
   btn.classList.remove("loading");
   btn.classList.add(type);
   btn.removeAttribute("aria-busy");
+  // Announce status to screen readers via dedicated live region
+  statusAnnouncement.textContent = message;
 }
 
-function resetButtons() {
+async function resetButtons() {
   saveUrlBtn.textContent = originalLabels.url;
   saveContentBtn.textContent = originalLabels.content;
   saveNoteBtn.textContent = originalLabels.note;
   for (const btn of allButtons) {
     btn.classList.remove("success", "error");
-    btn.disabled = false;
+  }
+  try {
+    // Re-evaluate disabled state based on current credentials (no UI flash)
+    const state = await getCredentialsState();
+    applyButtonState(state);
+  } catch (_err) {
+    console.error("[Lunatask] Failed to re-evaluate credentials after reset:", _err);
   }
 }
 
@@ -102,8 +172,11 @@ async function handleSaveNote() {
   }
 }
 
-loadCheckboxPreference();
+initPopup();
 linkTaskCheckbox.addEventListener("change", saveCheckboxPreference);
 saveUrlBtn.addEventListener("click", () => handleSave("url"));
 saveContentBtn.addEventListener("click", () => handleSave("content"));
 saveNoteBtn.addEventListener("click", handleSaveNote);
+openSettingsBtn.addEventListener("click", async () => {
+  await browser.runtime.openOptionsPage();
+});

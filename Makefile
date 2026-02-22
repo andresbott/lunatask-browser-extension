@@ -14,6 +14,17 @@ dev: ## start development build with watch mode
 	@npm run dev
 
 #==========================================================================================
+##@ Assets
+#==========================================================================================
+
+icons: assets/icon.png ## generate optimized icons from source
+	@for size in 16 32 48 128; do \
+		convert $< -trim +repage -resize $${size}x$${size} -strip public/icons/icon-$${size}.png; \
+	done
+	@oxipng -o max --strip safe -q public/icons/*.png
+	@echo "Generated icons: 16, 32, 48, 128"
+
+#==========================================================================================
 ##@ Building
 #==========================================================================================
 
@@ -43,11 +54,13 @@ check: lint typecheck ## run all quality checks
 
 package: build ## create Chrome extension zip for distribution
 	@mkdir -p releases
+	@for f in ../LICENSE* LICENSE*; do if [ -f "$$f" ]; then cp "$$f" dist/; fi; done
 	@cd dist && zip -r ../releases/$(PROJECT_NAME)-chrome-v$(VERSION).zip .
 	@echo "Created: releases/$(PROJECT_NAME)-chrome-v$(VERSION).zip"
 
 package-firefox: build-firefox ## create Firefox extension zip for distribution
 	@mkdir -p releases
+	@for f in ../LICENSE* LICENSE*; do if [ -f "$$f" ]; then cp "$$f" dist-firefox/; fi; done
 	@cd dist-firefox && zip -r ../releases/$(PROJECT_NAME)-firefox-v$(VERSION).zip .
 	@echo "Created: releases/$(PROJECT_NAME)-firefox-v$(VERSION).zip"
 
@@ -85,4 +98,4 @@ clean-all: clean ## remove all generated files
 help: ## display this help
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
-.PHONY: install dev build build-firefox build-all lint typecheck check package package-firefox package-all clean clean-all
+.PHONY: install dev icons build build-firefox build-all lint typecheck check package package-firefox package-all clean clean-all
