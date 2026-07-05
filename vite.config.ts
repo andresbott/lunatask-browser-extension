@@ -62,7 +62,7 @@ export default defineConfig(({ mode }) => ({
                   service_worker: "src/background/index.ts",
                   type: "module" as const,
                 },
-          permissions: ["storage", "activeTab", "scripting"],
+          permissions: ["storage", "activeTab", "scripting", "contextMenus"],
           host_permissions: ["https://api.lunatask.app/*"],
         };
 
