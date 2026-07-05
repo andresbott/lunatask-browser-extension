@@ -14,11 +14,11 @@ export interface SaveActionDefinition {
 export const SAVE_ACTIONS = [
   {
     id: "page-url-task",
-    label: "Save URL to task",
+    label: "Save page URL to task",
     action: { source: "page-url", target: "task" },
     contextMenuContexts: ["page", "selection"],
     popupContexts: ["page"],
-    successMessage: "Saved URL to task",
+    successMessage: "Saved page URL to task",
   },
   {
     id: "page-task",
