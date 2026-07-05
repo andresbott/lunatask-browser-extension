@@ -22,6 +22,13 @@ const API_BASE = "https://api.lunatask.app/v1";
 // browser.scripting.executeScript.
 const CONTENT_SCRIPT = "src/content/index.js";
 
+const CONTEXT_MENU_ITEMS = {
+  saveUrlToTask: "save-url-to-task",
+  saveContentToTask: "save-content-to-task",
+  saveContentToNote: "save-content-to-note",
+  saveContentToNoteLinkedTask: "save-content-to-note-linked-task",
+} as const;
+
 type ContentScriptResponse<T> =
   { success: true; data: T } | { success: false; error: string };
 
@@ -108,6 +115,11 @@ async function getPageInfo(
   }
 
   return null;
+}
+
+async function getActiveTab(): Promise<browser.Tabs.Tab | undefined> {
+  const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+  return tab;
 }
 
 function formatTaskNote(content: ExtractedContent, saveMode: SaveMode): string {
@@ -211,8 +223,9 @@ async function saveNoteToLunatask(
 
 async function handleSavePage(
   mode: SaveMode,
+  sourceTab?: browser.Tabs.Tab,
 ): Promise<{ success: boolean; error?: string }> {
-  const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+  const tab = sourceTab ?? (await getActiveTab());
 
   if (!tab) {
     return { success: false, error: "No active tab" };
@@ -279,8 +292,9 @@ ${content.content}
 
 async function handleSaveNote(
   linkTask: boolean,
+  sourceTab?: browser.Tabs.Tab,
 ): Promise<{ success: boolean; error?: string }> {
-  const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+  const tab = sourceTab ?? (await getActiveTab());
 
   if (!tab?.id) {
     return { success: false, error: "No active tab" };
@@ -355,10 +369,62 @@ async function handleSaveNote(
   return { success: true };
 }
 
+async function createContextMenus() {
+  await browser.contextMenus.removeAll();
+
+  browser.contextMenus.create({
+    id: CONTEXT_MENU_ITEMS.saveUrlToTask,
+    title: "Save URL to task",
+    contexts: ["page"],
+  });
+
+  browser.contextMenus.create({
+    id: CONTEXT_MENU_ITEMS.saveContentToTask,
+    title: "Save content to task",
+    contexts: ["page"],
+  });
+
+  browser.contextMenus.create({
+    id: CONTEXT_MENU_ITEMS.saveContentToNote,
+    title: "Save content to note",
+    contexts: ["page"],
+  });
+
+  browser.contextMenus.create({
+    id: CONTEXT_MENU_ITEMS.saveContentToNoteLinkedTask,
+    title: "Save content to note, create linked task",
+    contexts: ["page"],
+  });
+}
+
 browser.runtime.onInstalled.addListener((details) => {
+  createContextMenus().catch((error) => {
+    console.error("[Lunatask] Failed to create context menus:", error);
+  });
+
   if (details.reason === "install") {
     browser.runtime.openOptionsPage();
   }
+});
+
+browser.runtime.onStartup.addListener(() => {
+  createContextMenus().catch((error) => {
+    console.error("[Lunatask] Failed to create context menus:", error);
+  });
+});
+
+browser.contextMenus.onClicked.addListener((info, tab) => {
+  switch (info.menuItemId) {
+    case CONTEXT_MENU_ITEMS.saveUrlToTask:
+      return handleSavePage("url", tab);
+    case CONTEXT_MENU_ITEMS.saveContentToTask:
+      return handleSavePage("content", tab);
+    case CONTEXT_MENU_ITEMS.saveContentToNote:
+      return handleSaveNote(false, tab);
+    case CONTEXT_MENU_ITEMS.saveContentToNoteLinkedTask:
+      return handleSaveNote(true, tab);
+  }
+  return Promise.resolve();
 });
 
 browser.runtime.onMessage.addListener((message) => {
