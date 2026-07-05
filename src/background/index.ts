@@ -40,6 +40,7 @@ type SaveContext = {
   pageInfo?: PageInfo;
   linkUrl?: string;
   linkTitle?: string;
+  selectionText?: string;
 };
 type CapturedSource = {
   title: string;
@@ -108,9 +109,20 @@ async function extractContentFromTab(
   return null;
 }
 
-async function getPageInfoFromTab(
+async function extractSelectionFromTab(
   tabId: number,
-): Promise<PageInfo | null> {
+): Promise<ExtractedContent | null> {
+  const response = await sendMessageWithOptionalInjection<ExtractedContent>(
+    tabId,
+    { type: "EXTRACT_SELECTION" },
+  );
+
+  if (response.success) return response.data;
+  console.error("[Lunatask] Selection extraction failed:", response.error);
+  return null;
+}
+
+async function getPageInfoFromTab(tabId: number): Promise<PageInfo | null> {
   const response = await sendMessageWithOptionalInjection<{
     url: string;
     title: string;
@@ -435,6 +447,35 @@ async function capturePageContent(
   };
 }
 
+async function captureSelection(context: SaveContext): Promise<CaptureResult> {
+  if (!context.pageInfo?.url || !context.pageInfo.title) {
+    return { success: false, error: "Failed to read current page" };
+  }
+
+  let content = "";
+  if (context.tab?.id) {
+    const extracted = await extractSelectionFromTab(context.tab.id);
+    content = extracted?.content?.trim() || "";
+  }
+
+  if (!content) {
+    content = context.selectionText?.trim() || "";
+  }
+
+  if (!content) {
+    return { success: false, error: "No selection found" };
+  }
+
+  return {
+    success: true,
+    source: {
+      title: context.pageInfo.title,
+      url: context.pageInfo.url,
+      content,
+    },
+  };
+}
+
 function captureLink(context: SaveContext): CaptureResult {
   if (!context.linkUrl) {
     return { success: false, error: "No link URL found" };
@@ -461,7 +502,7 @@ async function captureSource(
     case "page":
       return capturePageContent(context);
     case "selection":
-      return { success: false, error: "Selection saving is not available yet" };
+      return captureSelection(context);
   }
 }
 
@@ -638,7 +679,10 @@ async function handleContextMenuAction(
   const context = await getPageSaveContext(tab);
   if (!context.success) return context;
 
-  return executeSave(definition.action, context.context);
+  return executeSave(definition.action, {
+    ...context.context,
+    selectionText: info.selectionText,
+  });
 }
 
 async function handlePopupAction(
