@@ -1,6 +1,7 @@
 # Lunatask Browser Extension
 
-Save any webpage as a task in [Lunatask](https://lunatask.app) with one click.
+Save webpages, links, and selections to [Lunatask](https://lunatask.app)
+as tasks or notes.
 
 ![img.jpg](img.jpg)
 
@@ -13,6 +14,7 @@ See `PRIVACY.md`.
 1. Install the extension
 2. Click the extension icon or right-click → "Options"
 3. Enter your **Area ID** and **Auth Token** from Lunatask
+4. Use the popup or right-click menu to save a page, link, or selection
 
 ### Getting your credentials
 

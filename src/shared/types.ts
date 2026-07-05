@@ -39,5 +39,3 @@ export type SaveAction =
       source: "page" | "selection";
       target: "task" | "note" | "note-with-task";
     };
-
-export type SaveMode = "url" | "content";

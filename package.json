@@ -1,7 +1,7 @@
 {
   "name": "lunatask-extension",
   "version": "0.4.0",
-  "description": "Unofficial Lunatask browser companion for saving links or articles as tasks or notes.",
+  "description": "Unofficial Lunatask browser companion for saving pages, links, and selections as tasks or notes.",
   "homepage": "https://github.com/andresbott/lunatask-browser-extension",
   "repository": {
     "type": "git",

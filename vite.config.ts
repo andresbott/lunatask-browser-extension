@@ -32,7 +32,7 @@ export default defineConfig(({ mode }) => ({
           version: pkg.version,
           description:
             pkg.description ??
-            "Unofficial Lunatask browser companion for saving links or articles as tasks or notes.",
+            "Unofficial Lunatask browser companion for saving pages, links, and selections as tasks or notes.",
           homepage_url: HOMEPAGE_URL,
           icons: {
             "16": "icons/icon-16.png",

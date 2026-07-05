@@ -1,15 +1,17 @@
 # Privacy Policy
 
-This unofficial Lunatask extension lets you save the current webpage to
-your Lunatask account as a task or note.
+This unofficial Lunatask extension lets you save webpages, links, and
+selections to your Lunatask account as tasks or notes.
 
 ## Data the extension handles
 
-When you click a save button in the extension popup, the extension may
-access:
+When you click a save action in the extension popup or right-click menu,
+the extension may access:
 
 - The active page URL and title
-- Extracted page content (when using a content-based save mode)
+- A link URL when saving a link from the right-click menu
+- Extracted page content when saving a page
+- The current page selection when saving a selection
 - The Lunatask access token and IDs you provide (optional
   Area/Goal/Notebook IDs) before using the extension
 
@@ -17,8 +19,9 @@ access:
 
 - Your configured credentials and IDs are stored locally in your
   browser.
-- Saved tasks/notes and any extracted page content are sent to Lunatask
-  and stored in your Lunatask account according to Lunatask's policies.
+- Saved tasks/notes and any extracted page content or selection are sent
+  to Lunatask and stored in your Lunatask account according to
+  Lunatask's policies.
 
 ## Where data is sent
 
@@ -32,8 +35,9 @@ parties.
 
 ## When data is accessed
 
-The extension only attempts to read page information/content when you
-explicitly click a save action in the extension popup.
+The extension only attempts to read page information/content, link URLs,
+or selections when you explicitly click a save action in the extension
+popup or right-click menu.
 
 ## Contact
 

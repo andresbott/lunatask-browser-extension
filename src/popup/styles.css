@@ -147,39 +147,6 @@ body {
   color: var(--error);
 }
 
-.save-note-group {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.checkbox-group {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding-left: 12px;
-}
-
-.checkbox-group input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
-  accent-color: var(--accent-primary);
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
-.checkbox-group input[type="checkbox"]:focus-visible {
-  outline: 2px solid var(--accent-primary);
-  outline-offset: 2px;
-}
-
-.checkbox-group label {
-  font-size: 13px;
-  color: var(--text-secondary);
-  cursor: pointer;
-  user-select: none;
-}
-
 .spinner {
   display: inline-block;
   width: 14px;

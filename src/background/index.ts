@@ -16,7 +16,6 @@ import type {
   NoteResponse,
   PageState,
   SaveAction,
-  SaveMode,
   TaskResponse,
 } from "../shared/types";
 
@@ -666,48 +665,6 @@ async function getPopupPageState(): Promise<
   };
 }
 
-async function handleSavePage(
-  mode: SaveMode,
-  sourceTab?: browser.Tabs.Tab,
-): Promise<SaveResult> {
-  const context = await getPageSaveContext(sourceTab);
-  if (!context.success) return context;
-
-  return executeSave(
-    { source: mode === "url" ? "page-url" : "page", target: "task" },
-    context.context,
-  );
-}
-
-async function handleSaveLink(
-  url: string,
-  title?: string,
-): Promise<SaveResult> {
-  return executeSave(
-    { source: "link", target: "task" },
-    { linkUrl: url, linkTitle: title },
-  );
-}
-
-async function handleSaveNote(
-  linkTask: boolean,
-  sourceTab?: browser.Tabs.Tab,
-): Promise<SaveResult> {
-  const tab = sourceTab ?? (await getActiveTab());
-
-  if (!tab?.id) {
-    return { success: false, error: "No active tab" };
-  }
-
-  const context = await getPageSaveContext(tab);
-  if (!context.success) return context;
-
-  return executeSave(
-    { source: "page", target: linkTask ? "note-with-task" : "note" },
-    context.context,
-  );
-}
-
 async function handleContextMenuAction(
   definition: SaveActionDefinition,
   info: browser.Menus.OnClickData,
@@ -832,13 +789,6 @@ browser.runtime.onMessage.addListener((message) => {
     }
 
     return handlePopupAction(action);
-  }
-
-  if (message.type === "SAVE_PAGE") {
-    return handleSavePage(message.mode as SaveMode);
-  }
-  if (message.type === "SAVE_NOTE") {
-    return handleSaveNote(message.linkTask as boolean);
   }
   return Promise.resolve();
 });
