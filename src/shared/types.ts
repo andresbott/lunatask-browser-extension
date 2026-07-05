@@ -27,6 +27,12 @@ export interface ExtractedContent {
   url: string;
 }
 
+export interface PageState {
+  title: string;
+  url: string;
+  hasSelection: boolean;
+}
+
 export type SaveAction =
   | { source: "page-url" | "link"; target: "task" }
   | {
