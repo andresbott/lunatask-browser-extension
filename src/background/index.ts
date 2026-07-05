@@ -14,6 +14,7 @@ import type {
   Config,
   ExtractedContent,
   NoteResponse,
+  PageState,
   SaveAction,
   SaveMode,
   TaskResponse,
@@ -621,6 +622,50 @@ async function getPageSaveContext(
   return { success: true, context: { tab, pageInfo } };
 }
 
+async function getSelectionStateFromTab(tabId: number): Promise<boolean> {
+  try {
+    const [result] = await browser.scripting.executeScript({
+      target: { tabId },
+      func: () => {
+        const selection = window.getSelection();
+        return Boolean(
+          selection && !selection.isCollapsed && selection.toString().trim(),
+        );
+      },
+    });
+
+    return Boolean(result?.result);
+  } catch (error) {
+    console.error("[Lunatask] Failed to get selection state:", error);
+    return false;
+  }
+}
+
+async function getPopupPageState(): Promise<
+  { success: true; data: PageState } | { success: false; error: string }
+> {
+  const tab = await getActiveTab();
+
+  if (!tab) {
+    return { success: false, error: "No active tab" };
+  }
+
+  const pageInfo = await getPageInfo(tab);
+  if (!pageInfo?.url || !pageInfo.title) {
+    return { success: false, error: "Failed to read current page" };
+  }
+
+  const hasSelection = tab.id ? await getSelectionStateFromTab(tab.id) : false;
+  return {
+    success: true,
+    data: {
+      title: pageInfo.title,
+      url: pageInfo.url,
+      hasSelection,
+    },
+  };
+}
+
 async function handleSavePage(
   mode: SaveMode,
   sourceTab?: browser.Tabs.Tab,
@@ -773,6 +818,10 @@ browser.contextMenus.onClicked.addListener((info, tab) => {
 });
 
 browser.runtime.onMessage.addListener((message) => {
+  if (message.type === "GET_POPUP_STATE") {
+    return getPopupPageState();
+  }
+
   if (message.type === "SAVE_ACTION") {
     const action = SAVE_ACTIONS_BY_ID[message.actionId as SaveActionId];
     if (!action) {

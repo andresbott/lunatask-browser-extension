@@ -6,9 +6,10 @@
 import browser from "webextension-polyfill";
 import {
   SAVE_ACTIONS,
+  type ActionContext,
   type SaveActionDefinition,
 } from "../shared/actions";
-import type { Config } from "../shared/types";
+import type { Config, PageState } from "../shared/types";
 
 const saveActionsContainer = document.getElementById(
   "save-actions",
@@ -24,9 +25,7 @@ const statusAnnouncement = document.getElementById(
   "status-announcement",
 ) as HTMLDivElement;
 
-const popupActions = (SAVE_ACTIONS as readonly SaveActionDefinition[]).filter(
-  (action) => action.popupContexts.includes("page"),
-);
+let visibleActions: SaveActionDefinition[] = [];
 const actionButtons = new Map<string, HTMLButtonElement>();
 
 async function getCredentialsState() {
@@ -52,14 +51,44 @@ function isActionDisabled(
   action: SaveActionDefinition,
   state: Awaited<ReturnType<typeof getCredentialsState>>,
 ): boolean {
-  return state.missingCore || (actionNeedsArea(action) && state.missingAreaIdForTask);
+  return (
+    state.missingCore || (actionNeedsArea(action) && state.missingAreaIdForTask)
+  );
 }
 
-function renderActions() {
+async function getPopupPageState(): Promise<PageState | null> {
+  try {
+    const response = await browser.runtime.sendMessage({
+      type: "GET_POPUP_STATE",
+    });
+
+    return response?.success ? (response.data as PageState) : null;
+  } catch (error) {
+    console.error("[Lunatask] Failed to get popup page state:", error);
+    return null;
+  }
+}
+
+function getPopupContexts(pageState: PageState | null): ActionContext[] {
+  const contexts: ActionContext[] = ["page"];
+  if (pageState?.hasSelection) {
+    contexts.push("selection");
+  }
+  return contexts;
+}
+
+function getVisibleActions(contexts: readonly ActionContext[]) {
+  return (SAVE_ACTIONS as readonly SaveActionDefinition[]).filter((action) =>
+    action.popupContexts.some((context) => contexts.includes(context)),
+  );
+}
+
+function renderActions(contexts: readonly ActionContext[]) {
+  visibleActions = getVisibleActions(contexts);
   saveActionsContainer.textContent = "";
   actionButtons.clear();
 
-  for (const action of popupActions) {
+  for (const action of visibleActions) {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "save-btn";
@@ -79,7 +108,7 @@ function getActionButtons(): HTMLButtonElement[] {
 function applyButtonState(
   state: Awaited<ReturnType<typeof getCredentialsState>>,
 ) {
-  for (const action of popupActions) {
+  for (const action of visibleActions) {
     const button = actionButtons.get(action.id);
     if (!button) continue;
     button.disabled = isActionDisabled(action, state);
@@ -98,7 +127,8 @@ function applyButtonState(
 }
 
 async function initPopup() {
-  renderActions();
+  const pageState = await getPopupPageState();
+  renderActions(getPopupContexts(pageState));
   const state = await getCredentialsState();
   applyButtonState(state);
 }
@@ -126,7 +156,7 @@ function setButtonStatus(
 }
 
 async function resetButtons() {
-  for (const action of popupActions) {
+  for (const action of visibleActions) {
     const button = actionButtons.get(action.id);
     if (!button) continue;
     button.textContent = action.label;
