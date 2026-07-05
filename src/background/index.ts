@@ -32,6 +32,8 @@ const CONTEXT_MENU_ITEMS = {
 type ContentScriptResponse<T> =
   { success: true; data: T } | { success: false; error: string };
 
+type SaveResult = { success: boolean; error?: string };
+
 async function sendMessageWithOptionalInjection<T>(
   tabId: number,
   message: unknown,
@@ -224,7 +226,7 @@ async function saveNoteToLunatask(
 async function handleSavePage(
   mode: SaveMode,
   sourceTab?: browser.Tabs.Tab,
-): Promise<{ success: boolean; error?: string }> {
+): Promise<SaveResult> {
   const tab = sourceTab ?? (await getActiveTab());
 
   if (!tab) {
@@ -282,7 +284,7 @@ async function handleSavePage(
 async function handleSaveLink(
   url: string,
   title?: string,
-): Promise<{ success: boolean; error?: string }> {
+): Promise<SaveResult> {
   const data = await browser.storage.local.get("credentials");
   const credentials = data.credentials as Config | undefined;
 
@@ -321,7 +323,7 @@ ${content.content}
 async function handleSaveNote(
   linkTask: boolean,
   sourceTab?: browser.Tabs.Tab,
-): Promise<{ success: boolean; error?: string }> {
+): Promise<SaveResult> {
   const tab = sourceTab ?? (await getActiveTab());
 
   if (!tab?.id) {
@@ -425,6 +427,33 @@ async function createContextMenus() {
   });
 }
 
+async function notifyContextMenuResult(
+  promise: Promise<SaveResult>,
+  successMessage: string,
+) {
+  let result: SaveResult;
+  try {
+    result = await promise;
+  } catch (error) {
+    console.error("[Lunatask] Context menu save failed:", error);
+    result = {
+      success: false,
+      error:
+        error instanceof Error ? error.message : "Failed to save to Lunatask",
+    };
+  }
+
+  await browser.notifications.create({
+    type: "basic",
+    iconUrl: browser.runtime.getURL("icons/icon-48.png"),
+    title: result.success ? "Lunatask" : "Lunatask save failed",
+    message: result.success
+      ? successMessage
+      : result.error || "Failed to save to Lunatask",
+  });
+  return result;
+}
+
 browser.runtime.onInstalled.addListener((details) => {
   createContextMenus().catch((error) => {
     console.error("[Lunatask] Failed to create context menus:", error);
@@ -445,18 +474,30 @@ browser.contextMenus.onClicked.addListener((info, tab) => {
   switch (info.menuItemId) {
     case CONTEXT_MENU_ITEMS.saveUrlToTask:
       if (info.linkUrl) {
-        return handleSaveLink(
-          info.linkUrl,
-          info.linkText || info.selectionText,
+        return notifyContextMenuResult(
+          handleSaveLink(info.linkUrl, info.linkText || info.selectionText),
+          "Saved URL to task",
         );
       }
-      return handleSavePage("url", tab);
+      return notifyContextMenuResult(
+        handleSavePage("url", tab),
+        "Saved URL to task",
+      );
     case CONTEXT_MENU_ITEMS.saveContentToTask:
-      return handleSavePage("content", tab);
+      return notifyContextMenuResult(
+        handleSavePage("content", tab),
+        "Saved content to task",
+      );
     case CONTEXT_MENU_ITEMS.saveContentToNote:
-      return handleSaveNote(false, tab);
+      return notifyContextMenuResult(
+        handleSaveNote(false, tab),
+        "Saved content to note",
+      );
     case CONTEXT_MENU_ITEMS.saveContentToNoteLinkedTask:
-      return handleSaveNote(true, tab);
+      return notifyContextMenuResult(
+        handleSaveNote(true, tab),
+        "Saved content to note and created linked task",
+      );
   }
   return Promise.resolve();
 });
