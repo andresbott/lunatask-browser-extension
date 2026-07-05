@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -8,10 +8,8 @@
   </head>
   <body>
     <div class="container">
-
       <main class="main">
         <form id="settings-form" class="settings-form">
-
           <div class="form-group">
             <label for="access-token" class="form-label">
               Access Token
@@ -36,7 +34,13 @@
                 Show
               </button>
             </div>
-            <p class="form-help">Necessary for creating tasks/notes on your behalf. From anywhere in Lunatask desktop, click the settings icon in the top right, then open "Access tokens" and click "Create access token". Rename it to something like "Browser extension", then click "Copy to clipboard".</p>
+            <p class="form-help">
+              Necessary for creating tasks/notes on your behalf. From anywhere
+              in Lunatask desktop, click the settings icon in the top right,
+              then open "Access tokens" and click "Create access token". Rename
+              it to something like "Browser extension", then click "Copy to
+              clipboard".
+            </p>
           </div>
 
           <div class="form-group">
@@ -51,9 +55,13 @@
               placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
               autocomplete="off"
             />
-            <p class="form-help">If blank, the extension will only be able to save page content to notes. If provided, it can create tasks in this area. To find the ID, start from the Tasks tab, go to the area, click the settings icon in the top left, then click "Copy ID" in the bottom left.</p>
+            <p class="form-help">
+              If blank, the extension will only be able to save page content to
+              notes. If provided, it can create tasks in this area. To find the
+              ID, start from the Tasks tab, go to the area, click the settings
+              icon in the top left, then click "Copy ID" in the bottom left.
+            </p>
           </div>
-
 
           <div class="form-group">
             <label for="goal-id" class="form-label">
@@ -67,7 +75,11 @@
               placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
               autocomplete="off"
             />
-            <p class="form-help">If provided, create tasks in this goal. To find the ID, start from the Tasks tab, go to the goal, click "Edit goal" to the right of the goal's name, then click "Copy ID" in the bottom left.</p>
+            <p class="form-help">
+              If provided, create tasks in this goal. To find the ID, start from
+              the Tasks tab, go to the goal, click "Edit goal" to the right of
+              the goal's name, then click "Copy ID" in the bottom left.
+            </p>
           </div>
 
           <div class="form-group">
@@ -82,7 +94,12 @@
               placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
               autocomplete="off"
             />
-            <p class="form-help">If blank, create notes without a notebook. If provided, create them with a notebook. To find the ID, start from the Notes tab, open the notebook selector, click the settings icon to the right of the notebook, then click "Copy ID" in the bottom left.</p>
+            <p class="form-help">
+              If blank, create notes without a notebook. If provided, create
+              them with a notebook. To find the ID, start from the Notes tab,
+              open the notebook selector, click the settings icon to the right
+              of the notebook, then click "Copy ID" in the bottom left.
+            </p>
           </div>
 
           <div class="form-actions">
@@ -94,7 +111,12 @@
       </main>
 
       <footer class="footer">
-        <a href="https://lunatask.app" target="_blank" rel="noopener" class="footer-link">
+        <a
+          href="https://lunatask.app"
+          target="_blank"
+          rel="noopener"
+          class="footer-link"
+        >
           Lunatask.app
         </a>
       </footer>

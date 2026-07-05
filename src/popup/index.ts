@@ -7,13 +7,23 @@ import browser from "webextension-polyfill";
 import type { Config, SaveMode } from "../shared/types";
 
 const saveUrlBtn = document.getElementById("save-url") as HTMLButtonElement;
-const saveContentBtn = document.getElementById("save-content") as HTMLButtonElement;
+const saveContentBtn = document.getElementById(
+  "save-content",
+) as HTMLButtonElement;
 const saveNoteBtn = document.getElementById("save-note") as HTMLButtonElement;
-const linkTaskCheckbox = document.getElementById("link-task-checkbox") as HTMLInputElement;
-const openSettingsBtn = document.getElementById("open-settings") as HTMLButtonElement;
-const settingsHint = document.getElementById("settings-hint") as HTMLParagraphElement;
+const linkTaskCheckbox = document.getElementById(
+  "link-task-checkbox",
+) as HTMLInputElement;
+const openSettingsBtn = document.getElementById(
+  "open-settings",
+) as HTMLButtonElement;
+const settingsHint = document.getElementById(
+  "settings-hint",
+) as HTMLParagraphElement;
 
-const statusAnnouncement = document.getElementById("status-announcement") as HTMLDivElement;
+const statusAnnouncement = document.getElementById(
+  "status-announcement",
+) as HTMLDivElement;
 
 const allButtons = [saveUrlBtn, saveContentBtn, saveNoteBtn];
 
@@ -24,7 +34,10 @@ const originalLabels = {
 };
 
 async function getCredentialsState() {
-  const data = await browser.storage.local.get(["credentials", "linkTaskPreference"]);
+  const data = await browser.storage.local.get([
+    "credentials",
+    "linkTaskPreference",
+  ]);
   const credentials = data.credentials as Config | undefined;
   const hasAreaId = Boolean(credentials?.areaId?.trim());
   const hasAuthToken = Boolean(credentials?.authToken?.trim());
@@ -37,7 +50,9 @@ async function getCredentialsState() {
   };
 }
 
-function applyButtonState(state: Awaited<ReturnType<typeof getCredentialsState>>) {
+function applyButtonState(
+  state: Awaited<ReturnType<typeof getCredentialsState>>,
+) {
   // Disable buttons based on missing credentials
   if (state.missingCore) {
     saveUrlBtn.disabled = true;
@@ -60,7 +75,6 @@ function applyButtonState(state: Awaited<ReturnType<typeof getCredentialsState>>
       linkTaskCheckbox.checked = false;
       linkTaskCheckbox.disabled = true;
     }
-
   }
   // Set checkbox preference if we have core credentials and areaId (needed for linking)
   if (!state.missingCore && !state.missingAreaIdForTask) {
@@ -73,7 +87,8 @@ function applyButtonState(state: Awaited<ReturnType<typeof getCredentialsState>>
     }
   }
   // Show settings button and hint only when all buttons are disabled
-  const allDisabled = saveUrlBtn.disabled && saveContentBtn.disabled && saveNoteBtn.disabled;
+  const allDisabled =
+    saveUrlBtn.disabled && saveContentBtn.disabled && saveNoteBtn.disabled;
   if (allDisabled) {
     openSettingsBtn.style.display = "block";
     settingsHint.style.display = "block";
@@ -101,7 +116,11 @@ function setButtonLoading(btn: HTMLButtonElement) {
   }
 }
 
-function setButtonStatus(btn: HTMLButtonElement, message: string, type: "success" | "error") {
+function setButtonStatus(
+  btn: HTMLButtonElement,
+  message: string,
+  type: "success" | "error",
+) {
   btn.textContent = message;
   btn.classList.remove("loading");
   btn.classList.add(type);
@@ -122,7 +141,10 @@ async function resetButtons() {
     const state = await getCredentialsState();
     applyButtonState(state);
   } catch (_err) {
-    console.error("[Lunatask] Failed to re-evaluate credentials after reset:", _err);
+    console.error(
+      "[Lunatask] Failed to re-evaluate credentials after reset:",
+      _err,
+    );
   }
 }
 
@@ -162,7 +184,11 @@ async function handleSaveNote() {
     if (response?.success) {
       setButtonStatus(saveNoteBtn, "Saved!", "success");
     } else {
-      setButtonStatus(saveNoteBtn, response?.error || "Failed to save", "error");
+      setButtonStatus(
+        saveNoteBtn,
+        response?.error || "Failed to save",
+        "error",
+      );
     }
     setTimeout(resetButtons, 1500);
   } catch (error) {

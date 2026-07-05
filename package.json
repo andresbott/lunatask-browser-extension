@@ -13,7 +13,9 @@
     "build": "vite build",
     "build:firefox": "vite build --mode firefox",
     "lint": "eslint src --ext .ts,.tsx",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "devDependencies": {
     "@types/chrome": "^0.0.268",
@@ -21,6 +23,7 @@
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
     "eslint": "^8.57.0",
+    "prettier": "^3.9.4",
     "typescript": "^5.4.0",
     "vite": "^5.2.0",
     "vite-plugin-web-extension": "^4.1.0",

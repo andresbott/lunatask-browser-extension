@@ -1,0 +1,7 @@
+node_modules/
+dist/
+dist-firefox/
+*.crx
+*.xpi
+*.zip
+package-lock.json

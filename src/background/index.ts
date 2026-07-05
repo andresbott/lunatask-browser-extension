@@ -23,17 +23,16 @@ const API_BASE = "https://api.lunatask.app/v1";
 const CONTENT_SCRIPT = "src/content/index.js";
 
 type ContentScriptResponse<T> =
-  | { success: true; data: T }
-  | { success: false; error: string };
+  { success: true; data: T } | { success: false; error: string };
 
 async function sendMessageWithOptionalInjection<T>(
   tabId: number,
-  message: unknown
+  message: unknown,
 ): Promise<ContentScriptResponse<T>> {
   try {
     return (await browser.tabs.sendMessage(
       tabId,
-      message
+      message,
     )) as ContentScriptResponse<T>;
   } catch (_err) {
     // Content scripts are injected on-demand to avoid broad host permissions.
@@ -50,21 +49,27 @@ async function sendMessageWithOptionalInjection<T>(
     try {
       return (await browser.tabs.sendMessage(
         tabId,
-        message
+        message,
       )) as ContentScriptResponse<T>;
     } catch (error) {
-      console.error("[Lunatask] Failed to communicate with content script:", error);
-      return { success: false, error: "Failed to communicate with content script" };
+      console.error(
+        "[Lunatask] Failed to communicate with content script:",
+        error,
+      );
+      return {
+        success: false,
+        error: "Failed to communicate with content script",
+      };
     }
   }
 }
 
 async function extractContentFromTab(
-  tabId: number
+  tabId: number,
 ): Promise<ExtractedContent | null> {
   const response = await sendMessageWithOptionalInjection<ExtractedContent>(
     tabId,
-    { type: "EXTRACT_PAGE_CONTENT" }
+    { type: "EXTRACT_PAGE_CONTENT" },
   );
 
   if (response.success) return response.data;
@@ -73,7 +78,7 @@ async function extractContentFromTab(
 }
 
 async function getPageInfoFromTab(
-  tabId: number
+  tabId: number,
 ): Promise<{ url: string; title: string } | null> {
   const response = await sendMessageWithOptionalInjection<{
     url: string;
@@ -90,7 +95,7 @@ async function getPageInfoFromTab(
  * and falling back to content script only when needed.
  */
 async function getPageInfo(
-  tab: browser.Tabs.Tab
+  tab: browser.Tabs.Tab,
 ): Promise<{ url: string; title: string } | null> {
   // Prefer tab properties directly - no content script injection needed
   if (tab.url && tab.title) {
@@ -105,10 +110,7 @@ async function getPageInfo(
   return null;
 }
 
-function formatTaskNote(
-  content: ExtractedContent,
-  saveMode: SaveMode
-): string {
+function formatTaskNote(content: ExtractedContent, saveMode: SaveMode): string {
   if (saveMode === "url" || !content.content) {
     return `<${content.url}>`;
   }
@@ -118,8 +120,8 @@ function formatTaskNote(
 
 ${content.content}
 
-[editor_v2]::`;  // TODO: remove once Lunatask's API is updated to parse the
-                 // new Markdown format
+[editor_v2]::`; // TODO: remove once Lunatask's API is updated to parse the
+  // new Markdown format
 }
 
 async function saveToLunatask(
@@ -128,7 +130,7 @@ async function saveToLunatask(
   title: string,
   note?: string,
   goalId?: string,
-  href?: string
+  href?: string,
 ): Promise<TaskResponse> {
   const task: Record<string, string> = {
     area_id: areaId,
@@ -171,7 +173,7 @@ async function saveNoteToLunatask(
   token: string,
   title: string,
   content: string,
-  notebookId?: string
+  notebookId?: string,
 ): Promise<NoteResponse> {
   const note: Record<string, string> = {
     name: title,
@@ -208,7 +210,7 @@ async function saveNoteToLunatask(
 }
 
 async function handleSavePage(
-  mode: SaveMode
+  mode: SaveMode,
 ): Promise<{ success: boolean; error?: string }> {
   const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
 
@@ -254,7 +256,7 @@ async function handleSavePage(
     credentials.authToken,
     title,
     note,
-    credentials.goalId
+    credentials.goalId,
   );
 
   if (result.status === 201) {
@@ -271,12 +273,12 @@ function formatNoteContent(content: ExtractedContent): string {
 
 ${content.content}
 
-[editor_v2]::`;  // TODO: remove once Lunatask's API is updated to parse the
-                 // new Markdown format
+[editor_v2]::`; // TODO: remove once Lunatask's API is updated to parse the
+  // new Markdown format
 }
 
 async function handleSaveNote(
-  linkTask: boolean
+  linkTask: boolean,
 ): Promise<{ success: boolean; error?: string }> {
   const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
 
@@ -315,11 +317,18 @@ async function handleSaveNote(
     credentials.authToken,
     title,
     noteContent,
-    credentials.notebookId
+    credentials.notebookId,
   );
 
-  if (noteResult.status !== 200 && noteResult.status !== 201 && noteResult.status !== 204) {
-    return { success: false, error: noteResult.error || "Failed to create note" };
+  if (
+    noteResult.status !== 200 &&
+    noteResult.status !== 201 &&
+    noteResult.status !== 204
+  ) {
+    return {
+      success: false,
+      error: noteResult.error || "Failed to create note",
+    };
   }
 
   if (linkTask && noteResult.noteId) {
@@ -332,11 +341,14 @@ async function handleSaveNote(
       title,
       taskNote,
       credentials.goalId,
-      noteHref
+      noteHref,
     );
 
     if (taskResult.status !== 201) {
-      return { success: false, error: taskResult.error || "Note created but task failed" };
+      return {
+        success: false,
+        error: taskResult.error || "Note created but task failed",
+      };
     }
   }
 
