@@ -138,6 +138,97 @@ ${content.content}
   // new Markdown format
 }
 
+async function parseResponseBody(response: Response): Promise<unknown> {
+  const text = await response.text();
+
+  if (!text) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(text) as unknown;
+  } catch (_error) {
+    return text;
+  }
+}
+
+function getStringProperty(data: unknown, key: string): string | undefined {
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    return undefined;
+  }
+
+  const value = (data as Record<string, unknown>)[key];
+  return typeof value === "string" ? value : undefined;
+}
+
+function getStringArrayProperty(
+  data: unknown,
+  key: string,
+): string[] | undefined {
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    return undefined;
+  }
+
+  const value = (data as Record<string, unknown>)[key];
+  return Array.isArray(value) && value.every((item) => typeof item === "string")
+    ? value
+    : undefined;
+}
+
+function humanizeValidationError(error: string): string {
+  switch (error) {
+    case "area_id cannot be blank":
+      return "Choose a valid Lunatask area before creating this task.";
+    case "area_id must exist":
+      return "The selected Lunatask area no longer exists or is unavailable. Update your settings.";
+    default:
+      return error
+        .replace(/_/g, " ")
+        .replace(/\bapi\b/gi, "API")
+        .replace(/^./, (char) => char.toUpperCase());
+  }
+}
+
+function formatLunataskError(
+  status: number,
+  data: unknown,
+  fallback: string,
+): string {
+  const error = getStringProperty(data, "error");
+  const errors = getStringArrayProperty(data, "errors");
+
+  if (status === 401 || error === "Unauthorized") {
+    return "Lunatask authorization failed. Please reconnect your account.";
+  }
+
+  if (status === 404 || error === "Not found") {
+    return "The requested Lunatask item could not be found. It may have been deleted.";
+  }
+
+  if (errors?.length) {
+    return errors.map(humanizeValidationError).join(" ");
+  }
+
+  if (error) {
+    return humanizeValidationError(error);
+  }
+
+  if (status === 400) {
+    return "Lunatask could not understand the request. Please try again or update the extension.";
+  }
+
+  if (status >= 500) {
+    return "Lunatask is having trouble right now. Please try again later.";
+  }
+
+  return fallback;
+}
+
+function formatLunataskRequestError(error: unknown): string {
+  console.error("[Lunatask] Request failed:", error);
+  return "Could not reach Lunatask. Check your connection and try again.";
+}
+
 async function saveToLunatask(
   areaId: string,
   token: string,
@@ -173,11 +264,24 @@ async function saveToLunatask(
     body: JSON.stringify({ task }),
   };
 
-  const response = await fetch(`${API_BASE}/tasks`, options);
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}/tasks`, options);
+  } catch (error) {
+    return { status: 0, error: formatLunataskRequestError(error) };
+  }
 
   if (response.status !== 201) {
-    const data = await response.json();
-    return { status: response.status, data, error: JSON.stringify(data) };
+    const data = await parseResponseBody(response);
+    return {
+      status: response.status,
+      data,
+      error: formatLunataskError(
+        response.status,
+        data,
+        "Failed to create task",
+      ),
+    };
   }
 
   return { status: 201 };
@@ -208,7 +312,12 @@ async function saveNoteToLunatask(
     body: JSON.stringify(note),
   };
 
-  const response = await fetch(`${API_BASE}/notes`, options);
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}/notes`, options);
+  } catch (error) {
+    return { status: 0, error: formatLunataskRequestError(error) };
+  }
 
   if (response.status === 200 || response.status === 201) {
     const data = (await response.json()) as { note: { id: string } };
@@ -219,8 +328,11 @@ async function saveNoteToLunatask(
     return { status: 204 };
   }
 
-  const data = await response.json();
-  return { status: response.status, error: JSON.stringify(data) };
+  const data = await parseResponseBody(response);
+  return {
+    status: response.status,
+    error: formatLunataskError(response.status, data, "Failed to create note"),
+  };
 }
 
 async function handleSavePage(
