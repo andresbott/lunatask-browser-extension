@@ -27,4 +27,11 @@ export interface ExtractedContent {
   url: string;
 }
 
+export type SaveAction =
+  | { source: "page-url" | "link"; target: "task" }
+  | {
+      source: "page" | "selection";
+      target: "task" | "note" | "note-with-task";
+    };
+
 export type SaveMode = "url" | "content";

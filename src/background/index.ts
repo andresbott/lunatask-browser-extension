@@ -8,6 +8,7 @@ import type {
   Config,
   ExtractedContent,
   NoteResponse,
+  SaveAction,
   SaveMode,
   TaskResponse,
 } from "../shared/types";
@@ -33,6 +34,28 @@ type ContentScriptResponse<T> =
   { success: true; data: T } | { success: false; error: string };
 
 type SaveResult = { success: boolean; error?: string };
+type PageInfo = { url: string; title: string };
+type SaveTarget = SaveAction["target"];
+type SaveContext = {
+  tab?: browser.Tabs.Tab;
+  pageInfo?: PageInfo;
+  linkUrl?: string;
+  linkTitle?: string;
+};
+type CapturedSource = {
+  title: string;
+  url: string;
+  content?: string;
+};
+
+type CredentialsResult =
+  { success: true; credentials: Config } | { success: false; error: string };
+
+type CaptureResult =
+  { success: true; source: CapturedSource } | { success: false; error: string };
+
+type PageContextResult =
+  { success: true; context: SaveContext } | { success: false; error: string };
 
 async function sendMessageWithOptionalInjection<T>(
   tabId: number,
@@ -88,7 +111,7 @@ async function extractContentFromTab(
 
 async function getPageInfoFromTab(
   tabId: number,
-): Promise<{ url: string; title: string } | null> {
+): Promise<PageInfo | null> {
   const response = await sendMessageWithOptionalInjection<{
     url: string;
     title: string;
@@ -103,9 +126,7 @@ async function getPageInfoFromTab(
  * Get page URL and title, preferring tab properties (no injection)
  * and falling back to content script only when needed.
  */
-async function getPageInfo(
-  tab: browser.Tabs.Tab,
-): Promise<{ url: string; title: string } | null> {
+async function getPageInfo(tab: browser.Tabs.Tab): Promise<PageInfo | null> {
   // Prefer tab properties directly - no content script injection needed
   if (tab.url && tab.title) {
     return { url: tab.url, title: tab.title };
@@ -124,18 +145,23 @@ async function getActiveTab(): Promise<browser.Tabs.Tab | undefined> {
   return tab;
 }
 
-function formatTaskNote(content: ExtractedContent, saveMode: SaveMode): string {
-  if (saveMode === "url" || !content.content) {
-    return `<${content.url}>`;
-  }
-  return `Source: <${content.url}>
+function formatContentBody(source: CapturedSource): string {
+  return `Source: <${source.url}>
 
 ---
 
-${content.content}
+${source.content ?? ""}
 
 [editor_v2]::`; // TODO: remove once Lunatask's API is updated to parse the
   // new Markdown format
+}
+
+function formatTaskBody(source: CapturedSource): string {
+  if (!source.content) {
+    return `<${source.url}>`;
+  }
+
+  return formatContentBody(source);
 }
 
 async function parseResponseBody(response: Response): Promise<unknown> {
@@ -335,118 +361,9 @@ async function saveNoteToLunatask(
   };
 }
 
-async function handleSavePage(
-  mode: SaveMode,
-  sourceTab?: browser.Tabs.Tab,
-): Promise<SaveResult> {
-  const tab = sourceTab ?? (await getActiveTab());
-
-  if (!tab) {
-    return { success: false, error: "No active tab" };
-  }
-
-  const pageInfo = await getPageInfo(tab);
-  if (!pageInfo?.url || !pageInfo.title) {
-    return { success: false, error: "Failed to read current page" };
-  }
-
-  const data = await browser.storage.local.get("credentials");
-  const credentials = data.credentials as Config | undefined;
-
-  if (!credentials?.areaId || !credentials?.authToken) {
-    browser.runtime.openOptionsPage();
-    return { success: false, error: "Please configure credentials first" };
-  }
-
-  let title = pageInfo.title;
-  let content: ExtractedContent = {
-    title: pageInfo.title,
-    url: pageInfo.url,
-    content: "",
-  };
-
-  if (mode === "content") {
-    if (!tab.id) {
-      return { success: false, error: "Cannot extract content from this page" };
-    }
-    const extracted = await extractContentFromTab(tab.id);
-    if (extracted) {
-      content = extracted;
-      title = extracted.title || pageInfo.title;
-    }
-  }
-
-  const note = formatTaskNote(content, mode);
-
-  const result = await saveToLunatask(
-    credentials.areaId,
-    credentials.authToken,
-    title,
-    note,
-    credentials.goalId,
-  );
-
-  if (result.status === 201) {
-    return { success: true };
-  }
-
-  return { success: false, error: result.error || "Unknown error" };
-}
-
-async function handleSaveLink(
-  url: string,
-  title?: string,
-): Promise<SaveResult> {
-  const data = await browser.storage.local.get("credentials");
-  const credentials = data.credentials as Config | undefined;
-
-  if (!credentials?.areaId || !credentials?.authToken) {
-    browser.runtime.openOptionsPage();
-    return { success: false, error: "Please configure credentials first" };
-  }
-
-  const taskTitle = title?.trim() || url;
-  const result = await saveToLunatask(
-    credentials.areaId,
-    credentials.authToken,
-    taskTitle,
-    `<${url}>`,
-    credentials.goalId,
-  );
-
-  if (result.status === 201) {
-    return { success: true };
-  }
-
-  return { success: false, error: result.error || "Unknown error" };
-}
-
-function formatNoteContent(content: ExtractedContent): string {
-  return `Source: <${content.url}>
-
----
-
-${content.content}
-
-[editor_v2]::`; // TODO: remove once Lunatask's API is updated to parse the
-  // new Markdown format
-}
-
-async function handleSaveNote(
-  linkTask: boolean,
-  sourceTab?: browser.Tabs.Tab,
-): Promise<SaveResult> {
-  const tab = sourceTab ?? (await getActiveTab());
-
-  if (!tab?.id) {
-    return { success: false, error: "No active tab" };
-  }
-
-  const pageInfo = await getPageInfo(tab);
-  if (!pageInfo?.url || !pageInfo.title) {
-    return { success: false, error: "Failed to read current page" };
-  }
-
+async function requireCredentials(
+  target: SaveTarget,
+): Promise<CredentialsResult> {
   const data = await browser.storage.local.get("credentials");
   const credentials = data.credentials as Config | undefined;
 
@@ -455,24 +372,128 @@ async function handleSaveNote(
     return { success: false, error: "Please configure credentials first" };
   }
 
-  if (linkTask && !credentials.areaId) {
+  if (
+    (target === "task" || target === "note-with-task") &&
+    !credentials.areaId
+  ) {
     browser.runtime.openOptionsPage();
-    return { success: false, error: "Area ID required to create linked task" };
+    return {
+      success: false,
+      error:
+        target === "note-with-task"
+          ? "Area ID required to create linked task"
+          : "Please configure credentials first",
+    };
   }
 
-  const extracted = await extractContentFromTab(tab.id);
-  const content: ExtractedContent = extracted || {
-    title: pageInfo.title,
-    url: pageInfo.url,
-    content: "",
-  };
-  const title = content.title || pageInfo.title;
-  const noteContent = formatNoteContent(content);
+  return { success: true, credentials };
+}
 
+function capturePageUrl(context: SaveContext): CaptureResult {
+  if (!context.pageInfo?.url || !context.pageInfo.title) {
+    return { success: false, error: "Failed to read current page" };
+  }
+
+  return {
+    success: true,
+    source: {
+      title: context.pageInfo.title,
+      url: context.pageInfo.url,
+    },
+  };
+}
+
+async function capturePageContent(
+  context: SaveContext,
+): Promise<CaptureResult> {
+  if (!context.pageInfo?.url || !context.pageInfo.title) {
+    return { success: false, error: "Failed to read current page" };
+  }
+
+  if (!context.tab?.id) {
+    return { success: false, error: "Cannot extract content from this page" };
+  }
+
+  const extracted = await extractContentFromTab(context.tab.id);
+  if (extracted) {
+    return {
+      success: true,
+      source: {
+        title: extracted.title || context.pageInfo.title,
+        url: extracted.url,
+        content: extracted.content,
+      },
+    };
+  }
+
+  return {
+    success: true,
+    source: {
+      title: context.pageInfo.title,
+      url: context.pageInfo.url,
+      content: "",
+    },
+  };
+}
+
+function captureLink(context: SaveContext): CaptureResult {
+  if (!context.linkUrl) {
+    return { success: false, error: "No link URL found" };
+  }
+
+  return {
+    success: true,
+    source: {
+      title: context.linkTitle?.trim() || context.linkUrl,
+      url: context.linkUrl,
+    },
+  };
+}
+
+async function captureSource(
+  action: SaveAction,
+  context: SaveContext,
+): Promise<CaptureResult> {
+  switch (action.source) {
+    case "page-url":
+      return capturePageUrl(context);
+    case "link":
+      return captureLink(context);
+    case "page":
+      return capturePageContent(context);
+    case "selection":
+      return { success: false, error: "Selection saving is not available yet" };
+  }
+}
+
+async function deliverTask(
+  source: CapturedSource,
+  credentials: Config,
+): Promise<SaveResult> {
+  const result = await saveToLunatask(
+    credentials.areaId,
+    credentials.authToken,
+    source.title,
+    formatTaskBody(source),
+    credentials.goalId,
+  );
+
+  if (result.status === 201) {
+    return { success: true };
+  }
+
+  return { success: false, error: result.error || "Unknown error" };
+}
+
+async function deliverNote(
+  source: CapturedSource,
+  credentials: Config,
+  createLinkedTask: boolean,
+): Promise<SaveResult> {
   const noteResult = await saveNoteToLunatask(
     credentials.authToken,
-    title,
-    noteContent,
+    source.title,
+    formatContentBody(source),
     credentials.notebookId,
   );
 
@@ -487,14 +508,14 @@ async function handleSaveNote(
     };
   }
 
-  if (linkTask && noteResult.noteId) {
+  if (createLinkedTask && noteResult.noteId) {
     const noteHref = `lunatask://notes/${noteResult.noteId}`;
-    const taskNote = `Note: [${title}](${noteHref})`;
+    const taskNote = `Note: [${source.title}](${noteHref})`;
 
     const taskResult = await saveToLunatask(
       credentials.areaId!,
       credentials.authToken,
-      title,
+      source.title,
       taskNote,
       credentials.goalId,
       noteHref,
@@ -509,6 +530,97 @@ async function handleSaveNote(
   }
 
   return { success: true };
+}
+
+async function deliverSave(
+  action: SaveAction,
+  source: CapturedSource,
+  credentials: Config,
+): Promise<SaveResult> {
+  switch (action.target) {
+    case "task":
+      return deliverTask(source, credentials);
+    case "note":
+      return deliverNote(source, credentials, false);
+    case "note-with-task":
+      return deliverNote(source, credentials, true);
+  }
+}
+
+async function executeSave(
+  action: SaveAction,
+  context: SaveContext,
+): Promise<SaveResult> {
+  const credentials = await requireCredentials(action.target);
+  if (!credentials.success) {
+    return { success: false, error: credentials.error };
+  }
+
+  const captured = await captureSource(action, context);
+  if (!captured.success) {
+    return { success: false, error: captured.error };
+  }
+
+  return deliverSave(action, captured.source, credentials.credentials);
+}
+
+async function getPageSaveContext(
+  sourceTab?: browser.Tabs.Tab,
+): Promise<PageContextResult> {
+  const tab = sourceTab ?? (await getActiveTab());
+
+  if (!tab) {
+    return { success: false, error: "No active tab" };
+  }
+
+  const pageInfo = await getPageInfo(tab);
+  if (!pageInfo?.url || !pageInfo.title) {
+    return { success: false, error: "Failed to read current page" };
+  }
+
+  return { success: true, context: { tab, pageInfo } };
+}
+
+async function handleSavePage(
+  mode: SaveMode,
+  sourceTab?: browser.Tabs.Tab,
+): Promise<SaveResult> {
+  const context = await getPageSaveContext(sourceTab);
+  if (!context.success) return context;
+
+  return executeSave(
+    { source: mode === "url" ? "page-url" : "page", target: "task" },
+    context.context,
+  );
+}
+
+async function handleSaveLink(
+  url: string,
+  title?: string,
+): Promise<SaveResult> {
+  return executeSave(
+    { source: "link", target: "task" },
+    { linkUrl: url, linkTitle: title },
+  );
+}
+
+async function handleSaveNote(
+  linkTask: boolean,
+  sourceTab?: browser.Tabs.Tab,
+): Promise<SaveResult> {
+  const tab = sourceTab ?? (await getActiveTab());
+
+  if (!tab?.id) {
+    return { success: false, error: "No active tab" };
+  }
+
+  const context = await getPageSaveContext(tab);
+  if (!context.success) return context;
+
+  return executeSave(
+    { source: "page", target: linkTask ? "note-with-task" : "note" },
+    context.context,
+  );
 }
 
 async function createContextMenus() {
