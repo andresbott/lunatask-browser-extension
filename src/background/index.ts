@@ -279,6 +279,34 @@ async function handleSavePage(
   return { success: false, error: result.error || "Unknown error" };
 }
 
+async function handleSaveLink(
+  url: string,
+  title?: string,
+): Promise<{ success: boolean; error?: string }> {
+  const data = await browser.storage.local.get("credentials");
+  const credentials = data.credentials as Config | undefined;
+
+  if (!credentials?.areaId || !credentials?.authToken) {
+    browser.runtime.openOptionsPage();
+    return { success: false, error: "Please configure credentials first" };
+  }
+
+  const taskTitle = title?.trim() || url;
+  const result = await saveToLunatask(
+    credentials.areaId,
+    credentials.authToken,
+    taskTitle,
+    `<${url}>`,
+    credentials.goalId,
+  );
+
+  if (result.status === 201) {
+    return { success: true };
+  }
+
+  return { success: false, error: result.error || "Unknown error" };
+}
+
 function formatNoteContent(content: ExtractedContent): string {
   return `Source: <${content.url}>
 
@@ -375,7 +403,7 @@ async function createContextMenus() {
   browser.contextMenus.create({
     id: CONTEXT_MENU_ITEMS.saveUrlToTask,
     title: "Save URL to task",
-    contexts: ["page"],
+    contexts: ["page", "link"],
   });
 
   browser.contextMenus.create({
@@ -416,6 +444,12 @@ browser.runtime.onStartup.addListener(() => {
 browser.contextMenus.onClicked.addListener((info, tab) => {
   switch (info.menuItemId) {
     case CONTEXT_MENU_ITEMS.saveUrlToTask:
+      if (info.linkUrl) {
+        return handleSaveLink(
+          info.linkUrl,
+          info.linkText || info.selectionText,
+        );
+      }
       return handleSavePage("url", tab);
     case CONTEXT_MENU_ITEMS.saveContentToTask:
       return handleSavePage("content", tab);
