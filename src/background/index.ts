@@ -641,6 +641,19 @@ async function handleContextMenuAction(
   return executeSave(definition.action, context.context);
 }
 
+async function handlePopupAction(
+  definition: SaveActionDefinition,
+): Promise<SaveResult> {
+  if (definition.action.source === "link") {
+    return { success: false, error: "Cannot save a link from the popup" };
+  }
+
+  const context = await getPageSaveContext();
+  if (!context.success) return context;
+
+  return executeSave(definition.action, context.context);
+}
+
 async function createContextMenus() {
   await browser.contextMenus.removeAll();
 
@@ -716,6 +729,18 @@ browser.contextMenus.onClicked.addListener((info, tab) => {
 });
 
 browser.runtime.onMessage.addListener((message) => {
+  if (message.type === "SAVE_ACTION") {
+    const action = SAVE_ACTIONS_BY_ID[message.actionId as SaveActionId];
+    if (!action) {
+      return Promise.resolve({
+        success: false,
+        error: "Unknown save action",
+      });
+    }
+
+    return handlePopupAction(action);
+  }
+
   if (message.type === "SAVE_PAGE") {
     return handleSavePage(message.mode as SaveMode);
   }
