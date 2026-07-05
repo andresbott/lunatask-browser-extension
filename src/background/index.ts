@@ -4,6 +4,12 @@
  */
 
 import browser from "webextension-polyfill";
+import {
+  SAVE_ACTIONS,
+  SAVE_ACTIONS_BY_ID,
+  type SaveActionDefinition,
+  type SaveActionId,
+} from "../shared/actions";
 import type {
   Config,
   ExtractedContent,
@@ -22,13 +28,6 @@ const API_BASE = "https://api.lunatask.app/v1";
 // paths to output paths — designed exactly for dynamic injection via
 // browser.scripting.executeScript.
 const CONTENT_SCRIPT = "src/content/index.js";
-
-const CONTEXT_MENU_ITEMS = {
-  saveUrlToTask: "save-url-to-task",
-  saveContentToTask: "save-content-to-task",
-  saveContentToNote: "save-content-to-note",
-  saveContentToNoteLinkedTask: "save-content-to-note-linked-task",
-} as const;
 
 type ContentScriptResponse<T> =
   { success: true; data: T } | { success: false; error: string };
@@ -623,32 +622,37 @@ async function handleSaveNote(
   );
 }
 
+async function handleContextMenuAction(
+  definition: SaveActionDefinition,
+  info: browser.Menus.OnClickData,
+  tab?: browser.Tabs.Tab,
+): Promise<SaveResult> {
+  if (definition.action.source === "link") {
+    return executeSave(definition.action, {
+      tab,
+      linkUrl: info.linkUrl,
+      linkTitle: info.linkText || info.selectionText,
+    });
+  }
+
+  const context = await getPageSaveContext(tab);
+  if (!context.success) return context;
+
+  return executeSave(definition.action, context.context);
+}
+
 async function createContextMenus() {
   await browser.contextMenus.removeAll();
 
-  browser.contextMenus.create({
-    id: CONTEXT_MENU_ITEMS.saveUrlToTask,
-    title: "Save URL to task",
-    contexts: ["page", "link"],
-  });
+  for (const action of SAVE_ACTIONS) {
+    if (!action.contextMenuContexts.length) continue;
 
-  browser.contextMenus.create({
-    id: CONTEXT_MENU_ITEMS.saveContentToTask,
-    title: "Save content to task",
-    contexts: ["page"],
-  });
-
-  browser.contextMenus.create({
-    id: CONTEXT_MENU_ITEMS.saveContentToNote,
-    title: "Save content to note",
-    contexts: ["page"],
-  });
-
-  browser.contextMenus.create({
-    id: CONTEXT_MENU_ITEMS.saveContentToNoteLinkedTask,
-    title: "Save content to note, create linked task",
-    contexts: ["page"],
-  });
+    browser.contextMenus.create({
+      id: action.id,
+      title: action.label,
+      contexts: [...action.contextMenuContexts],
+    });
+  }
 }
 
 async function notifyContextMenuResult(
@@ -695,34 +699,19 @@ browser.runtime.onStartup.addListener(() => {
 });
 
 browser.contextMenus.onClicked.addListener((info, tab) => {
-  switch (info.menuItemId) {
-    case CONTEXT_MENU_ITEMS.saveUrlToTask:
-      if (info.linkUrl) {
-        return notifyContextMenuResult(
-          handleSaveLink(info.linkUrl, info.linkText || info.selectionText),
-          "Saved URL to task",
-        );
-      }
-      return notifyContextMenuResult(
-        handleSavePage("url", tab),
-        "Saved URL to task",
-      );
-    case CONTEXT_MENU_ITEMS.saveContentToTask:
-      return notifyContextMenuResult(
-        handleSavePage("content", tab),
-        "Saved content to task",
-      );
-    case CONTEXT_MENU_ITEMS.saveContentToNote:
-      return notifyContextMenuResult(
-        handleSaveNote(false, tab),
-        "Saved content to note",
-      );
-    case CONTEXT_MENU_ITEMS.saveContentToNoteLinkedTask:
-      return notifyContextMenuResult(
-        handleSaveNote(true, tab),
-        "Saved content to note and created linked task",
-      );
+  const menuItemId =
+    typeof info.menuItemId === "string" ? info.menuItemId : undefined;
+  const action = menuItemId
+    ? SAVE_ACTIONS_BY_ID[menuItemId as SaveActionId]
+    : undefined;
+
+  if (action) {
+    return notifyContextMenuResult(
+      handleContextMenuAction(action, info, tab),
+      action.successMessage,
+    );
   }
+
   return Promise.resolve();
 });
 
