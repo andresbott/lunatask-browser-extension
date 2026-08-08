@@ -347,6 +347,37 @@ browser.runtime.onInstalled.addListener((details) => {
   if (details.reason === "install") {
     browser.runtime.openOptionsPage();
   }
+  createContextMenu();
+});
+
+browser.runtime.onStartup.addListener(() => {
+  createContextMenu();
+});
+
+function createContextMenu() {
+  browser.contextMenus.removeAll();
+  browser.contextMenus.create({ id: "save-url-to-task", title: "Save URL to task", contexts: ["page"] });
+  browser.contextMenus.create({ id: "save-content-to-task", title: "Save content to task", contexts: ["page"] });
+  browser.contextMenus.create({ type: "separator", contexts: ["page"] });
+  browser.contextMenus.create({ id: "save-content-to-note", title: "Save content to note", contexts: ["page"] });
+  browser.contextMenus.create({ id: "save-content-to-note-and-link", title: "Save content to note and link task", contexts: ["page"] });
+}
+
+browser.contextMenus.onClicked.addListener((info) => {
+  switch (info.menuItemId) {
+    case "save-url-to-task":
+      handleSavePage("url");
+      break;
+    case "save-content-to-task":
+      handleSavePage("content");
+      break;
+    case "save-content-to-note":
+      handleSaveNote(false);
+      break;
+    case "save-content-to-note-and-link":
+      handleSaveNote(true);
+      break;
+  }
 });
 
 browser.runtime.onMessage.addListener((message) => {
