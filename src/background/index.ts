@@ -22,18 +22,26 @@ const API_BASE = "https://api.lunatask.app/v1";
 // browser.scripting.executeScript.
 const CONTENT_SCRIPT = "src/content/index.js";
 
+const CONTEXT_MENU_ITEMS = {
+  saveUrlToTask: "save-url-to-task",
+  saveContentToTask: "save-content-to-task",
+  saveContentToNote: "save-content-to-note",
+  saveContentToNoteLinkedTask: "save-content-to-note-linked-task",
+} as const;
+
 type ContentScriptResponse<T> =
-  | { success: true; data: T }
-  | { success: false; error: string };
+  { success: true; data: T } | { success: false; error: string };
+
+type SaveResult = { success: boolean; error?: string };
 
 async function sendMessageWithOptionalInjection<T>(
   tabId: number,
-  message: unknown
+  message: unknown,
 ): Promise<ContentScriptResponse<T>> {
   try {
     return (await browser.tabs.sendMessage(
       tabId,
-      message
+      message,
     )) as ContentScriptResponse<T>;
   } catch (_err) {
     // Content scripts are injected on-demand to avoid broad host permissions.
@@ -50,21 +58,27 @@ async function sendMessageWithOptionalInjection<T>(
     try {
       return (await browser.tabs.sendMessage(
         tabId,
-        message
+        message,
       )) as ContentScriptResponse<T>;
     } catch (error) {
-      console.error("[Lunatask] Failed to communicate with content script:", error);
-      return { success: false, error: "Failed to communicate with content script" };
+      console.error(
+        "[Lunatask] Failed to communicate with content script:",
+        error,
+      );
+      return {
+        success: false,
+        error: "Failed to communicate with content script",
+      };
     }
   }
 }
 
 async function extractContentFromTab(
-  tabId: number
+  tabId: number,
 ): Promise<ExtractedContent | null> {
   const response = await sendMessageWithOptionalInjection<ExtractedContent>(
     tabId,
-    { type: "EXTRACT_PAGE_CONTENT" }
+    { type: "EXTRACT_PAGE_CONTENT" },
   );
 
   if (response.success) return response.data;
@@ -73,7 +87,7 @@ async function extractContentFromTab(
 }
 
 async function getPageInfoFromTab(
-  tabId: number
+  tabId: number,
 ): Promise<{ url: string; title: string } | null> {
   const response = await sendMessageWithOptionalInjection<{
     url: string;
@@ -90,7 +104,7 @@ async function getPageInfoFromTab(
  * and falling back to content script only when needed.
  */
 async function getPageInfo(
-  tab: browser.Tabs.Tab
+  tab: browser.Tabs.Tab,
 ): Promise<{ url: string; title: string } | null> {
   // Prefer tab properties directly - no content script injection needed
   if (tab.url && tab.title) {
@@ -105,10 +119,12 @@ async function getPageInfo(
   return null;
 }
 
-function formatTaskNote(
-  content: ExtractedContent,
-  saveMode: SaveMode
-): string {
+async function getActiveTab(): Promise<browser.Tabs.Tab | undefined> {
+  const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+  return tab;
+}
+
+function formatTaskNote(content: ExtractedContent, saveMode: SaveMode): string {
   if (saveMode === "url" || !content.content) {
     return `<${content.url}>`;
   }
@@ -118,8 +134,99 @@ function formatTaskNote(
 
 ${content.content}
 
-[editor_v2]::`;  // TODO: remove once Lunatask's API is updated to parse the
-                 // new Markdown format
+[editor_v2]::`; // TODO: remove once Lunatask's API is updated to parse the
+  // new Markdown format
+}
+
+async function parseResponseBody(response: Response): Promise<unknown> {
+  const text = await response.text();
+
+  if (!text) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(text) as unknown;
+  } catch (_error) {
+    return text;
+  }
+}
+
+function getStringProperty(data: unknown, key: string): string | undefined {
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    return undefined;
+  }
+
+  const value = (data as Record<string, unknown>)[key];
+  return typeof value === "string" ? value : undefined;
+}
+
+function getStringArrayProperty(
+  data: unknown,
+  key: string,
+): string[] | undefined {
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    return undefined;
+  }
+
+  const value = (data as Record<string, unknown>)[key];
+  return Array.isArray(value) && value.every((item) => typeof item === "string")
+    ? value
+    : undefined;
+}
+
+function humanizeValidationError(error: string): string {
+  switch (error) {
+    case "area_id cannot be blank":
+      return "Choose a valid Lunatask area before creating this task.";
+    case "area_id must exist":
+      return "The selected Lunatask area no longer exists or is unavailable. Update your settings.";
+    default:
+      return error
+        .replace(/_/g, " ")
+        .replace(/\bapi\b/gi, "API")
+        .replace(/^./, (char) => char.toUpperCase());
+  }
+}
+
+function formatLunataskError(
+  status: number,
+  data: unknown,
+  fallback: string,
+): string {
+  const error = getStringProperty(data, "error");
+  const errors = getStringArrayProperty(data, "errors");
+
+  if (status === 401 || error === "Unauthorized") {
+    return "Lunatask authorization failed. Please reconnect your account.";
+  }
+
+  if (status === 404 || error === "Not found") {
+    return "The requested Lunatask item could not be found. It may have been deleted.";
+  }
+
+  if (errors?.length) {
+    return errors.map(humanizeValidationError).join(" ");
+  }
+
+  if (error) {
+    return humanizeValidationError(error);
+  }
+
+  if (status === 400) {
+    return "Lunatask could not understand the request. Please try again or update the extension.";
+  }
+
+  if (status >= 500) {
+    return "Lunatask is having trouble right now. Please try again later.";
+  }
+
+  return fallback;
+}
+
+function formatLunataskRequestError(error: unknown): string {
+  console.error("[Lunatask] Request failed:", error);
+  return "Could not reach Lunatask. Check your connection and try again.";
 }
 
 async function saveToLunatask(
@@ -128,7 +235,7 @@ async function saveToLunatask(
   title: string,
   note?: string,
   goalId?: string,
-  href?: string
+  href?: string,
 ): Promise<TaskResponse> {
   const task: Record<string, string> = {
     area_id: areaId,
@@ -157,11 +264,24 @@ async function saveToLunatask(
     body: JSON.stringify({ task }),
   };
 
-  const response = await fetch(`${API_BASE}/tasks`, options);
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}/tasks`, options);
+  } catch (error) {
+    return { status: 0, error: formatLunataskRequestError(error) };
+  }
 
   if (response.status !== 201) {
-    const data = await response.json();
-    return { status: response.status, data, error: JSON.stringify(data) };
+    const data = await parseResponseBody(response);
+    return {
+      status: response.status,
+      data,
+      error: formatLunataskError(
+        response.status,
+        data,
+        "Failed to create task",
+      ),
+    };
   }
 
   return { status: 201 };
@@ -171,7 +291,7 @@ async function saveNoteToLunatask(
   token: string,
   title: string,
   content: string,
-  notebookId?: string
+  notebookId?: string,
 ): Promise<NoteResponse> {
   const note: Record<string, string> = {
     name: title,
@@ -192,7 +312,12 @@ async function saveNoteToLunatask(
     body: JSON.stringify(note),
   };
 
-  const response = await fetch(`${API_BASE}/notes`, options);
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}/notes`, options);
+  } catch (error) {
+    return { status: 0, error: formatLunataskRequestError(error) };
+  }
 
   if (response.status === 200 || response.status === 201) {
     const data = (await response.json()) as { note: { id: string } };
@@ -203,14 +328,18 @@ async function saveNoteToLunatask(
     return { status: 204 };
   }
 
-  const data = await response.json();
-  return { status: response.status, error: JSON.stringify(data) };
+  const data = await parseResponseBody(response);
+  return {
+    status: response.status,
+    error: formatLunataskError(response.status, data, "Failed to create note"),
+  };
 }
 
 async function handleSavePage(
-  mode: SaveMode
-): Promise<{ success: boolean; error?: string }> {
-  const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+  mode: SaveMode,
+  sourceTab?: browser.Tabs.Tab,
+): Promise<SaveResult> {
+  const tab = sourceTab ?? (await getActiveTab());
 
   if (!tab) {
     return { success: false, error: "No active tab" };
@@ -254,7 +383,35 @@ async function handleSavePage(
     credentials.authToken,
     title,
     note,
-    credentials.goalId
+    credentials.goalId,
+  );
+
+  if (result.status === 201) {
+    return { success: true };
+  }
+
+  return { success: false, error: result.error || "Unknown error" };
+}
+
+async function handleSaveLink(
+  url: string,
+  title?: string,
+): Promise<SaveResult> {
+  const data = await browser.storage.local.get("credentials");
+  const credentials = data.credentials as Config | undefined;
+
+  if (!credentials?.areaId || !credentials?.authToken) {
+    browser.runtime.openOptionsPage();
+    return { success: false, error: "Please configure credentials first" };
+  }
+
+  const taskTitle = title?.trim() || url;
+  const result = await saveToLunatask(
+    credentials.areaId,
+    credentials.authToken,
+    taskTitle,
+    `<${url}>`,
+    credentials.goalId,
   );
 
   if (result.status === 201) {
@@ -271,14 +428,15 @@ function formatNoteContent(content: ExtractedContent): string {
 
 ${content.content}
 
-[editor_v2]::`;  // TODO: remove once Lunatask's API is updated to parse the
-                 // new Markdown format
+[editor_v2]::`; // TODO: remove once Lunatask's API is updated to parse the
+  // new Markdown format
 }
 
 async function handleSaveNote(
-  linkTask: boolean
-): Promise<{ success: boolean; error?: string }> {
-  const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+  linkTask: boolean,
+  sourceTab?: browser.Tabs.Tab,
+): Promise<SaveResult> {
+  const tab = sourceTab ?? (await getActiveTab());
 
   if (!tab?.id) {
     return { success: false, error: "No active tab" };
@@ -315,11 +473,18 @@ async function handleSaveNote(
     credentials.authToken,
     title,
     noteContent,
-    credentials.notebookId
+    credentials.notebookId,
   );
 
-  if (noteResult.status !== 200 && noteResult.status !== 201 && noteResult.status !== 204) {
-    return { success: false, error: noteResult.error || "Failed to create note" };
+  if (
+    noteResult.status !== 200 &&
+    noteResult.status !== 201 &&
+    noteResult.status !== 204
+  ) {
+    return {
+      success: false,
+      error: noteResult.error || "Failed to create note",
+    };
   }
 
   if (linkTask && noteResult.noteId) {
@@ -332,21 +497,121 @@ async function handleSaveNote(
       title,
       taskNote,
       credentials.goalId,
-      noteHref
+      noteHref,
     );
 
     if (taskResult.status !== 201) {
-      return { success: false, error: taskResult.error || "Note created but task failed" };
+      return {
+        success: false,
+        error: taskResult.error || "Note created but task failed",
+      };
     }
   }
 
   return { success: true };
 }
 
+async function createContextMenus() {
+  await browser.contextMenus.removeAll();
+
+  browser.contextMenus.create({
+    id: CONTEXT_MENU_ITEMS.saveUrlToTask,
+    title: "Save URL to task",
+    contexts: ["page", "link"],
+  });
+
+  browser.contextMenus.create({
+    id: CONTEXT_MENU_ITEMS.saveContentToTask,
+    title: "Save content to task",
+    contexts: ["page"],
+  });
+
+  browser.contextMenus.create({
+    id: CONTEXT_MENU_ITEMS.saveContentToNote,
+    title: "Save content to note",
+    contexts: ["page"],
+  });
+
+  browser.contextMenus.create({
+    id: CONTEXT_MENU_ITEMS.saveContentToNoteLinkedTask,
+    title: "Save content to note, create linked task",
+    contexts: ["page"],
+  });
+}
+
+async function notifyContextMenuResult(
+  promise: Promise<SaveResult>,
+  successMessage: string,
+) {
+  let result: SaveResult;
+  try {
+    result = await promise;
+  } catch (error) {
+    console.error("[Lunatask] Context menu save failed:", error);
+    result = {
+      success: false,
+      error:
+        error instanceof Error ? error.message : "Failed to save to Lunatask",
+    };
+  }
+
+  await browser.notifications.create({
+    type: "basic",
+    iconUrl: browser.runtime.getURL("icons/icon-48.png"),
+    title: result.success ? "Lunatask" : "Lunatask save failed",
+    message: result.success
+      ? successMessage
+      : result.error || "Failed to save to Lunatask",
+  });
+  return result;
+}
+
 browser.runtime.onInstalled.addListener((details) => {
+  createContextMenus().catch((error) => {
+    console.error("[Lunatask] Failed to create context menus:", error);
+  });
+
   if (details.reason === "install") {
     browser.runtime.openOptionsPage();
   }
+});
+
+browser.runtime.onStartup.addListener(() => {
+  createContextMenus().catch((error) => {
+    console.error("[Lunatask] Failed to create context menus:", error);
+  });
+});
+
+browser.contextMenus.onClicked.addListener((info, tab) => {
+  switch (info.menuItemId) {
+    case CONTEXT_MENU_ITEMS.saveUrlToTask:
+      if (info.linkUrl) {
+        return notifyContextMenuResult(
+          handleSaveLink(info.linkUrl, info.linkText || info.selectionText),
+          "Saved URL to task",
+        );
+      }
+      return notifyContextMenuResult(
+        handleSavePage("url", tab),
+        "Saved URL to task",
+      );
+    case CONTEXT_MENU_ITEMS.saveContentToTask:
+      return notifyContextMenuResult(
+        handleSavePage("content", tab),
+        "Saved content to task",
+      );
+    case CONTEXT_MENU_ITEMS.saveContentToNote:
+      return notifyContextMenuResult(
+        handleSaveNote(false, tab),
+        "Saved content to note",
+      );
+    case CONTEXT_MENU_ITEMS.saveContentToNoteLinkedTask:
+      return notifyContextMenuResult(
+        handleSaveNote(true, tab),
+        "Saved content to note and created linked task",
+      );
+  }
+  return Promise.resolve();
 });
 
 browser.runtime.onMessage.addListener((message) => {

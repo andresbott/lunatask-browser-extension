@@ -8,7 +8,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const pkg = JSON.parse(
-  readFileSync(path.join(__dirname, "package.json"), "utf-8")
+  readFileSync(path.join(__dirname, "package.json"), "utf-8"),
 ) as { version: string; description?: string; homepage?: string };
 
 const HOMEPAGE_URL =
@@ -30,7 +30,9 @@ export default defineConfig(({ mode }) => ({
           manifest_version: 3,
           name: "Lunatask",
           version: pkg.version,
-          description: pkg.description ?? "Unofficial Lunatask browser companion for saving links or articles as tasks or notes.",
+          description:
+            pkg.description ??
+            "Unofficial Lunatask browser companion for saving links or articles as tasks or notes.",
           homepage_url: HOMEPAGE_URL,
           icons: {
             "16": "icons/icon-16.png",
@@ -52,9 +54,21 @@ export default defineConfig(({ mode }) => ({
           },
           background:
             mode === "firefox"
-              ? { scripts: ["src/background/index.ts"], type: "module" as const }
-              : { service_worker: "src/background/index.ts", type: "module" as const },
-          permissions: ["storage", "activeTab", "scripting"],
+              ? {
+                  scripts: ["src/background/index.ts"],
+                  type: "module" as const,
+                }
+              : {
+                  service_worker: "src/background/index.ts",
+                  type: "module" as const,
+                },
+          permissions: [
+            "storage",
+            "activeTab",
+            "scripting",
+            "contextMenus",
+            "notifications",
+          ],
           host_permissions: ["https://api.lunatask.app/*"],
         };
 
@@ -67,7 +81,11 @@ export default defineConfig(({ mode }) => ({
               // Required for new AMO submissions
               // https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/manifest.json/browser_specific_settings
               data_collection_permissions: {
-                required: ["authenticationInfo", "websiteActivity", "websiteContent"],
+                required: [
+                  "authenticationInfo",
+                  "websiteActivity",
+                  "websiteContent",
+                ],
                 optional: [],
               },
             },

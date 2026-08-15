@@ -8,11 +8,19 @@ import type { Config } from "../shared/types";
 
 const form = document.getElementById("settings-form") as HTMLFormElement;
 const areaIdInput = document.getElementById("area-id") as HTMLInputElement;
-const authTokenInput = document.getElementById("access-token") as HTMLInputElement;
+const authTokenInput = document.getElementById(
+  "access-token",
+) as HTMLInputElement;
 const goalIdInput = document.getElementById("goal-id") as HTMLInputElement;
-const notebookIdInput = document.getElementById("notebook-id") as HTMLInputElement;
-const toggleTokenBtn = document.getElementById("toggle-token") as HTMLButtonElement;
-const statusMessage = document.getElementById("status-message") as HTMLDivElement;
+const notebookIdInput = document.getElementById(
+  "notebook-id",
+) as HTMLInputElement;
+const toggleTokenBtn = document.getElementById(
+  "toggle-token",
+) as HTMLButtonElement;
+const statusMessage = document.getElementById(
+  "status-message",
+) as HTMLDivElement;
 
 function updateFieldStates() {
   const hasToken = authTokenInput.value.trim().length > 0;
@@ -51,7 +59,7 @@ function setupEventListeners() {
     toggleTokenBtn.setAttribute("aria-pressed", String(isHidden));
     toggleTokenBtn.setAttribute(
       "aria-label",
-      isHidden ? "Hide access token" : "Show access token"
+      isHidden ? "Hide access token" : "Show access token",
     );
   });
 
